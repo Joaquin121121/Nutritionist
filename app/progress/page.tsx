@@ -10,9 +10,8 @@ import {
   startOfYear,
   endOfYear,
   subDays,
+  subWeeks,
   eachDayOfInterval,
-  isWeekend,
-  getDay,
 } from 'date-fns';
 import {
   StreakDisplay,
@@ -94,40 +93,48 @@ export default function ProgressPage() {
       consecutiveDate = subDays(consecutiveDate, 1);
     }
 
-    // Calculate fitness streak (weekdays only)
+    // Calculate fitness streak (consecutive days with fitness, any day counts)
+    // Streak resets if previous week's goals weren't met (3 weightlifting, 2 basketball)
     let fitnessStreak = 0;
-    let fitnessCheckDate = today;
 
-    // Find the most recent weekday
-    while (isWeekend(fitnessCheckDate)) {
-      fitnessCheckDate = subDays(fitnessCheckDate, 1);
+    // Helper to count weekly fitness activities
+    const countWeeklyFitness = (weekStart: Date, weekEnd: Date) => {
+      let weightlifting = 0;
+      let basketball = 0;
+      const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
+      days.forEach((day) => {
+        const dateStr = format(day, 'yyyy-MM-dd');
+        const log = logsByDate.get(dateStr);
+        if (log?.fitness_activities) {
+          log.fitness_activities.forEach((a) => {
+            if (a.type === 'weightlifting') weightlifting++;
+            if (a.type === 'basketball_training') basketball++;
+          });
+        }
+      });
+      return { weightlifting, basketball };
+    };
+
+    // Check if previous week met goals
+    const lastWeekStart = startOfWeek(subWeeks(today, 1), { weekStartsOn: 1 });
+    const lastWeekEnd = endOfWeek(subWeeks(today, 1), { weekStartsOn: 1 });
+    const lastWeekFitness = countWeeklyFitness(lastWeekStart, lastWeekEnd);
+    const lastWeekGoalsMet = lastWeekFitness.weightlifting >= 3 && lastWeekFitness.basketball >= 2;
+
+    // If last week goals weren't met, streak can only count from this week
+    const earliestStreakDate = lastWeekGoalsMet ? null : startOfWeek(today, { weekStartsOn: 1 });
+
+    // Count consecutive days with fitness (backwards from today)
+    const todayFitness = logsByDate.get(format(today, 'yyyy-MM-dd'));
+    if (todayFitness && hasFitnessActivity(todayFitness)) {
+      fitnessStreak = 1;
     }
 
-    // Check today's fitness if it's a weekday
-    const dayOfWeek = getDay(today);
-    const isTodayWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
-
-    if (isTodayWeekday) {
-      const todayFitness = logsByDate.get(format(today, 'yyyy-MM-dd'));
-      if (todayFitness && hasFitnessActivity(todayFitness)) {
-        fitnessStreak = 1;
-        fitnessCheckDate = subDays(today, 1);
-      } else {
-        // Today is weekday but no fitness, streak is 0
-        fitnessStreak = 0;
-        fitnessCheckDate = subDays(today, 1);
-      }
-    } else {
-      // It's weekend, start checking from most recent weekday
-      fitnessStreak = 0;
-    }
-
-    // Count backwards, skipping weekends
-    let fitnessConsecutiveDate = fitnessCheckDate;
+    let fitnessConsecutiveDate = subDays(today, 1);
     while (true) {
-      // Skip weekends
-      while (isWeekend(fitnessConsecutiveDate)) {
-        fitnessConsecutiveDate = subDays(fitnessConsecutiveDate, 1);
+      // Stop if we've gone past the earliest allowed date (when last week goals weren't met)
+      if (earliestStreakDate && fitnessConsecutiveDate < earliestStreakDate) {
+        break;
       }
 
       const dateStr = format(fitnessConsecutiveDate, 'yyyy-MM-dd');
@@ -139,6 +146,17 @@ export default function ProgressPage() {
 
       fitnessStreak++;
       fitnessConsecutiveDate = subDays(fitnessConsecutiveDate, 1);
+
+      // Check week boundaries - if entering a new week, verify that week's goals were met
+      const prevWeekStart = startOfWeek(fitnessConsecutiveDate, { weekStartsOn: 1 });
+      const currentWeekStart = startOfWeek(subDays(fitnessConsecutiveDate, -1), { weekStartsOn: 1 });
+      if (prevWeekStart.getTime() !== currentWeekStart.getTime()) {
+        const prevWeekEnd = endOfWeek(fitnessConsecutiveDate, { weekStartsOn: 1 });
+        const prevWeekFitness = countWeeklyFitness(prevWeekStart, prevWeekEnd);
+        if (prevWeekFitness.weightlifting < 3 || prevWeekFitness.basketball < 2) {
+          break; // That week didn't meet goals, stop counting
+        }
+      }
     }
 
     const longestStreak = Math.max(existingStreak?.longest_streak || 0, currentStreak);
@@ -238,34 +256,31 @@ export default function ProgressPage() {
   // Weekly goals
   const weeklyGoals = useMemo(() => {
     const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
     const daysToCheck = eachDayOfInterval({ start: weekStart, end: today });
 
     let cleanDays = 0;
-    let fitnessDays = 0;
-    let weekdaysWithFitness = 0;
+    let weightliftingSessions = 0;
+    let basketballSessions = 0;
+
+    // Count activities from logs (need full week data, not just day statuses)
+    logs.forEach((log) => {
+      const logDate = new Date(log.date);
+      if (logDate >= weekStart && logDate <= weekEnd) {
+        log.fitness_activities?.forEach((a) => {
+          if (a.type === 'weightlifting') weightliftingSessions++;
+          if (a.type === 'basketball_training') basketballSessions++;
+        });
+      }
+    });
 
     daysToCheck.forEach((day) => {
       const dateStr = format(day, 'yyyy-MM-dd');
       const status = dayStatuses.get(dateStr);
-      const dayOfWeek = getDay(day);
-      const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
-
       if (status && status.isClean) {
         cleanDays++;
       }
-      if (status && status.hasFitness) {
-        fitnessDays++;
-        if (isWeekday) {
-          weekdaysWithFitness++;
-        }
-      }
     });
-
-    // Count weekdays so far this week
-    const weekdaysSoFar = daysToCheck.filter((day) => {
-      const dow = getDay(day);
-      return dow >= 1 && dow <= 5;
-    }).length;
 
     return [
       {
@@ -276,14 +291,21 @@ export default function ProgressPage() {
         completed: cleanDays >= 6,
       },
       {
-        id: 'fitness_weekdays',
-        name: 'Fitness todos los dias laborales',
-        current: weekdaysWithFitness,
-        target: Math.min(weekdaysSoFar, 5),
-        completed: weekdaysWithFitness >= weekdaysSoFar && weekdaysSoFar > 0,
+        id: 'weightlifting',
+        name: 'Pesas (3 sesiones)',
+        current: weightliftingSessions,
+        target: 3,
+        completed: weightliftingSessions >= 3,
+      },
+      {
+        id: 'basketball',
+        name: 'Basketball (2 sesiones)',
+        current: basketballSessions,
+        target: 2,
+        completed: basketballSessions >= 2,
       },
     ];
-  }, [dayStatuses, today]);
+  }, [logs, dayStatuses, today]);
 
   if (loading) {
     return (
