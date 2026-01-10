@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
-import { DayNavigator, MealCard, CheatMealInput } from '@/components/track';
+import { DayNavigator, MealCard, CheatMealInput, FitnessSection } from '@/components/track';
 import { Checkbox } from '@/components/ui';
 import { VARIABLE_MEALS, FIXED_MEALS, DEFAULT_FIXED_MEALS } from '@/data/meals';
 import { getDailyLog, upsertDailyLog } from '@/lib/database';
-import type { DailyLog, CheatMeal } from '@/types';
+import type { DailyLog, CheatMeal, FitnessActivity, FitnessActivityType } from '@/types';
 
 const MAX_VARIABLE_MEALS = 2;
 
@@ -15,6 +15,7 @@ export default function TrackPage() {
   const [variableMeals, setVariableMeals] = useState<string[]>([]);
   const [fixedMeals, setFixedMeals] = useState<Record<string, boolean>>(DEFAULT_FIXED_MEALS);
   const [cheatMeals, setCheatMeals] = useState<CheatMeal[]>([]);
+  const [fitnessActivities, setFitnessActivities] = useState<FitnessActivity[]>([]);
   const [loading, setLoading] = useState(true);
 
   const dateString = format(selectedDate, 'yyyy-MM-dd');
@@ -27,10 +28,12 @@ export default function TrackPage() {
         setVariableMeals(log.variable_meals || []);
         setFixedMeals(log.fixed_meals || DEFAULT_FIXED_MEALS);
         setCheatMeals(log.cheat_meals || []);
+        setFitnessActivities(log.fitness_activities || []);
       } else {
         setVariableMeals([]);
         setFixedMeals(DEFAULT_FIXED_MEALS);
         setCheatMeals([]);
+        setFitnessActivities([]);
       }
     } catch (error) {
       console.error('Error loading daily log:', error);
@@ -43,7 +46,7 @@ export default function TrackPage() {
     loadDailyLog();
   }, [loadDailyLog]);
 
-  const saveLog = async (updates: Partial<Pick<DailyLog, 'variable_meals' | 'fixed_meals' | 'cheat_meals'>>) => {
+  const saveLog = async (updates: Partial<Pick<DailyLog, 'variable_meals' | 'fixed_meals' | 'cheat_meals' | 'fitness_activities'>>) => {
     try {
       await upsertDailyLog(dateString, updates);
     } catch (error) {
@@ -85,6 +88,23 @@ export default function TrackPage() {
     saveLog({ cheat_meals: newMeals });
   };
 
+  const handleFitnessToggle = (type: FitnessActivityType) => {
+    const exists = fitnessActivities.some((a) => a.type === type);
+    let newActivities: FitnessActivity[];
+
+    if (exists) {
+      newActivities = fitnessActivities.filter((a) => a.type !== type);
+    } else {
+      newActivities = [
+        ...fitnessActivities,
+        { type, timestamp: new Date().toISOString() },
+      ];
+    }
+
+    setFitnessActivities(newActivities);
+    saveLog({ fitness_activities: newActivities });
+  };
+
   const fixedMealsCompleted = Object.values(fixedMeals).filter(Boolean).length;
   const totalFixedMeals = FIXED_MEALS.length;
 
@@ -99,6 +119,24 @@ export default function TrackPage() {
   return (
     <div className="max-w-lg mx-auto px-4">
       <DayNavigator selectedDate={selectedDate} onDateChange={setSelectedDate} />
+
+      {/* Fitness Section */}
+      <section className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-neutral-800 dark:text-neutral-200">
+            Actividad fisica
+          </h2>
+          {fitnessActivities.length > 0 && (
+            <span className="text-sm font-medium text-accent-600 dark:text-accent-400">
+              {fitnessActivities.length} actividad{fitnessActivities.length > 1 ? 'es' : ''}
+            </span>
+          )}
+        </div>
+        <FitnessSection
+          activities={fitnessActivities}
+          onToggle={handleFitnessToggle}
+        />
+      </section>
 
       {/* Variable Meals Section */}
       <section className="mb-6">
@@ -173,7 +211,15 @@ export default function TrackPage() {
         <h3 className="font-semibold text-primary-800 dark:text-primary-200 mb-2">
           Resumen del dia
         </h3>
-        <div className="flex items-center gap-4 text-sm text-primary-700 dark:text-primary-300">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-primary-700 dark:text-primary-300">
+          {fitnessActivities.length > 0 && (
+            <>
+              <span className="text-accent-600 dark:text-accent-400">
+                {fitnessActivities.length} fitness
+              </span>
+              <span>•</span>
+            </>
+          )}
           <span>{variableMeals.length} comidas variables</span>
           <span>•</span>
           <span>{fixedMealsCompleted}/{totalFixedMeals} fijas</span>

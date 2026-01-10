@@ -1,6 +1,7 @@
 import { getSupabase } from './supabase';
-import type { DailyLog, GroceryItemDB, StreakData, CheatMeal } from '@/types';
+import type { DailyLog, GroceryItemDB, StreakData, CheatMeal, FitnessActivity, BasketballSession, ShotData } from '@/types';
 import { DEFAULT_FIXED_MEALS } from '@/data/meals';
+import { calculateSessionScore } from '@/data/shots';
 
 // ============ Daily Logs ============
 
@@ -28,6 +29,7 @@ export async function upsertDailyLog(
     variable_meals?: string[];
     fixed_meals?: Record<string, boolean>;
     cheat_meals?: CheatMeal[];
+    fitness_activities?: FitnessActivity[];
   }
 ): Promise<DailyLog | null> {
   const supabase = getSupabase();
@@ -40,6 +42,7 @@ export async function upsertDailyLog(
     variable_meals: updates.variable_meals ?? existing?.variable_meals ?? [],
     fixed_meals: updates.fixed_meals ?? existing?.fixed_meals ?? DEFAULT_FIXED_MEALS,
     cheat_meals: updates.cheat_meals ?? existing?.cheat_meals ?? [],
+    fitness_activities: updates.fitness_activities ?? existing?.fitness_activities ?? [],
     updated_at: new Date().toISOString(),
   };
 
@@ -159,19 +162,34 @@ export async function getStreakData(): Promise<StreakData | null> {
 export async function updateStreakData(
   currentStreak: number,
   longestStreak: number,
-  lastCleanDay: string | null
+  lastCleanDay: string | null,
+  fitnessStreak?: number,
+  longestFitnessStreak?: number,
+  lastFitnessDay?: string | null
 ): Promise<void> {
   const supabase = getSupabase();
   if (!supabase) return;
 
+  const payload: Record<string, unknown> = {
+    id: STREAK_ID,
+    current_streak: currentStreak,
+    longest_streak: longestStreak,
+    last_clean_day: lastCleanDay,
+  };
+
+  if (fitnessStreak !== undefined) {
+    payload.fitness_streak = fitnessStreak;
+  }
+  if (longestFitnessStreak !== undefined) {
+    payload.longest_fitness_streak = longestFitnessStreak;
+  }
+  if (lastFitnessDay !== undefined) {
+    payload.last_fitness_day = lastFitnessDay;
+  }
+
   const { error } = await supabase
     .from('streaks')
-    .upsert({
-      id: STREAK_ID,
-      current_streak: currentStreak,
-      longest_streak: longestStreak,
-      last_clean_day: lastCleanDay,
-    });
+    .upsert(payload);
 
   if (error) {
     console.error('Error updating streak data:', error);
@@ -179,11 +197,106 @@ export async function updateStreakData(
   }
 }
 
+// ============ Basketball Sessions ============
+
+export async function getBasketballSession(date: string): Promise<BasketballSession | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from('basketball_sessions')
+    .select('*')
+    .eq('date', date)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error fetching basketball session:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function getBasketballSessionsRange(
+  startDate: string,
+  endDate: string
+): Promise<BasketballSession[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('basketball_sessions')
+    .select('*')
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .order('date', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching basketball sessions range:', error);
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function getAllBasketballSessions(): Promise<BasketballSession[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('basketball_sessions')
+    .select('*')
+    .order('date', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching all basketball sessions:', error);
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function saveBasketballSession(
+  date: string,
+  shots: ShotData
+): Promise<BasketballSession | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  const { totalMakes, totalAttempts, score } = calculateSessionScore(shots);
+
+  const { data, error } = await supabase
+    .from('basketball_sessions')
+    .insert({
+      date,
+      shots,
+      total_makes: totalMakes,
+      total_attempts: totalAttempts,
+      score: Math.round(score * 100) / 100,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error saving basketball session:', error);
+    throw error;
+  }
+
+  return data;
+}
+
 // ============ Stats Helpers ============
 
 export function isCleanDay(log: DailyLog | null): boolean {
   if (!log) return false;
   return log.cheat_meals.length === 0;
+}
+
+export function hasFitnessActivity(log: DailyLog | null): boolean {
+  if (!log) return false;
+  return (log.fitness_activities?.length ?? 0) > 0;
 }
 
 export function calculateStats(logs: DailyLog[]): {
@@ -196,4 +309,16 @@ export function calculateStats(logs: DailyLog[]): {
   const percentage = totalDays > 0 ? Math.round((cleanDays / totalDays) * 100) : 0;
 
   return { cleanDays, totalDays, percentage };
+}
+
+export function calculateFitnessStats(logs: DailyLog[]): {
+  fitnessDays: number;
+  totalDays: number;
+  percentage: number;
+} {
+  const totalDays = logs.length;
+  const fitnessDays = logs.filter((log) => hasFitnessActivity(log)).length;
+  const percentage = totalDays > 0 ? Math.round((fitnessDays / totalDays) * 100) : 0;
+
+  return { fitnessDays, totalDays, percentage };
 }

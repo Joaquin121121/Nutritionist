@@ -2,12 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Utensils, TrendingUp, ShoppingCart } from 'lucide-react';
+import { Utensils, TrendingUp, ShoppingCart, Target, BarChart3 } from 'lucide-react';
 
 const tabs = [
   { href: '/track', label: 'Track', icon: Utensils },
   { href: '/progress', label: 'Progress', icon: TrendingUp },
-  { href: '/groceries', label: 'Groceries', icon: ShoppingCart },
+  { href: '/groceries', label: 'Compras', icon: ShoppingCart },
+  { href: '/basketball', label: 'Basket', icon: Target },
+  { href: '/hoops-stats', label: 'Stats', icon: BarChart3 },
 ];
 
 export function BottomNav() {
@@ -31,12 +33,12 @@ export function BottomNav() {
               }`}
             >
               <Icon
-                className={`w-6 h-6 mb-1 transition-transform ${
+                className={`w-5 h-5 mb-1 transition-transform ${
                   isActive ? 'scale-110' : ''
                 }`}
                 strokeWidth={isActive ? 2.5 : 2}
               />
-              <span className={`text-xs font-medium ${isActive ? 'font-semibold' : ''}`}>
+              <span className={`text-[10px] font-medium ${isActive ? 'font-semibold' : ''}`}>
                 {tab.label}
               </span>
             </Link>

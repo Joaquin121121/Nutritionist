@@ -16,12 +16,27 @@ export interface CheatMeal {
   emoji?: string;
 }
 
+// Fitness Types
+export type FitnessActivityType = 'weightlifting' | 'basketball_pickup' | 'basketball_training';
+
+export interface FitnessActivity {
+  type: FitnessActivityType;
+  timestamp: string;
+}
+
+export interface FitnessActivityDef {
+  id: FitnessActivityType;
+  name: string;
+  emoji: string;
+}
+
 export interface DailyLog {
   id: string;
   date: string;
   variable_meals: string[];
   fixed_meals: Record<string, boolean>;
   cheat_meals: CheatMeal[];
+  fitness_activities: FitnessActivity[];
   created_at: string;
   updated_at: string;
 }
@@ -45,6 +60,9 @@ export interface StreakData {
   current_streak: number;
   longest_streak: number;
   last_clean_day: string | null;
+  fitness_streak: number;
+  longest_fitness_streak: number;
+  last_fitness_day: string | null;
 }
 
 export interface DayStatus {
@@ -53,6 +71,8 @@ export interface DayStatus {
   variableMealsCount: number;
   fixedMealsCompleted: number;
   cheatMealsCount: number;
+  fitnessActivitiesCount: number;
+  hasFitness: boolean;
 }
 
 export interface PeriodStats {
@@ -60,4 +80,43 @@ export interface PeriodStats {
   cleanDays: number;
   totalDays: number;
   percentage: number;
+}
+
+// Basketball Types
+export interface ShotData {
+  midrange_cs?: number;
+  midrange_pullup?: number;
+  triple_cs_1?: number;
+  flotadora?: number;
+  bandeja_izq?: number;
+  bandeja_der?: number;
+  triples_cs?: number;
+  libres?: number;
+}
+
+export interface BasketballSession {
+  id: string;
+  date: string;
+  shots: ShotData;
+  total_makes: number;
+  total_attempts: number;
+  score: number;
+  created_at: string;
+}
+
+export interface ShotType {
+  id: keyof ShotData;
+  name: string;
+  attempts: number;
+  emoji: string;
+}
+
+export interface ShotStats {
+  id: keyof ShotData;
+  name: string;
+  totalMakes: number;
+  totalAttempts: number;
+  percentage: number;
+  sessionsCount: number;
+  averagePerSession: number;
 }

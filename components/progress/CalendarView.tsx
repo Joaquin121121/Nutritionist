@@ -50,6 +50,12 @@ export function CalendarView({ dayStatuses, onDayClick }: CalendarViewProps) {
     return 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400';
   };
 
+  const hasFitnessActivity = (date: Date): boolean => {
+    const dateKey = format(date, 'yyyy-MM-dd');
+    const status = dayStatuses.get(dateKey);
+    return status?.hasFitness ?? false;
+  };
+
   return (
     <div className="bg-white dark:bg-neutral-800 rounded-xl p-4 border border-neutral-200 dark:border-neutral-700">
       {/* Month Navigation */}
@@ -88,6 +94,7 @@ export function CalendarView({ dayStatuses, onDayClick }: CalendarViewProps) {
         {days.map((day) => {
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isTodayDate = isToday(day);
+          const hasFitness = hasFitnessActivity(day);
 
           return (
             <button
@@ -95,30 +102,37 @@ export function CalendarView({ dayStatuses, onDayClick }: CalendarViewProps) {
               onClick={() => onDayClick?.(day)}
               disabled={!isCurrentMonth}
               className={`
-                aspect-square rounded-lg flex items-center justify-center text-sm font-medium
-                transition-all duration-200
+                aspect-square rounded-lg flex flex-col items-center justify-center text-sm font-medium
+                transition-all duration-200 relative
                 ${isCurrentMonth ? getDayStyle(day) : 'bg-transparent text-neutral-300 dark:text-neutral-600'}
                 ${isTodayDate ? 'ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-neutral-800' : ''}
                 ${isCurrentMonth ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'}
               `}
             >
               {format(day, 'd')}
+              {hasFitness && isCurrentMonth && (
+                <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-accent-500" />
+              )}
             </button>
           );
         })}
       </div>
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-center gap-3 mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-700">
+        <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-sm bg-primary-100 dark:bg-primary-900/30" />
           <span className="text-xs text-neutral-500 dark:text-neutral-400">Limpio</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-sm bg-danger-100 dark:bg-danger-900/30" />
           <span className="text-xs text-neutral-500 dark:text-neutral-400">Cheat</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <div className="w-2 h-2 rounded-full bg-accent-500" />
+          <span className="text-xs text-neutral-500 dark:text-neutral-400">Fitness</span>
+        </div>
+        <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-sm bg-neutral-100 dark:bg-neutral-700" />
           <span className="text-xs text-neutral-500 dark:text-neutral-400">Sin datos</span>
         </div>
