@@ -4,308 +4,200 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   format,
   startOfWeek,
-  endOfWeek,
   startOfMonth,
-  endOfMonth,
   startOfYear,
-  endOfYear,
-  subDays,
+  startOfDay,
   subWeeks,
+  subMonths,
   eachDayOfInterval,
+  endOfYear,
 } from 'date-fns';
 import {
-  StreakDisplay,
-  StatsCard,
-  CalendarView,
-  WeeklyGoals,
+  TimeRangeSelector,
+  MetricCard,
+  CompoundScore,
 } from '@/components/progress';
-import {
-  getDailyLogsRange,
-  getStreakData,
-  updateStreakData,
-  calculateStats,
-  calculateFitnessStats,
-  isCleanDay,
-  hasFitnessActivity,
-} from '@/lib/database';
-import type { DailyLog, DayStatus, StreakData } from '@/types';
+import type { TimeRange } from '@/components/progress';
+import { getDailyLogsRange } from '@/lib/database';
+import type { DailyLog } from '@/types';
+
+interface MetricsData {
+  variableMeals: { count: number; total: number; percentage: number };
+  fixedMeals: { count: number; total: number; percentage: number };
+  weightlifting: { count: number; total: number; percentage: number };
+  basketball: { count: number; total: number; percentage: number };
+  cheatMeals: { count: number; total: number; percentage: number };
+}
+
+const TARGETS = {
+  variableMeals: 85,
+  fixedMeals: 85,
+  weightlifting: 42,
+  basketball: 28,
+  cheatMeals: 21.4,
+};
+
+function getDateRange(range: TimeRange, today: Date): { start: Date; end: Date } {
+  const normalizedToday = startOfDay(today);
+  switch (range) {
+    case 'week':
+      return { start: startOfWeek(normalizedToday, { weekStartsOn: 1 }), end: normalizedToday };
+    case 'two_weeks':
+      return { start: startOfWeek(subWeeks(normalizedToday, 1), { weekStartsOn: 1 }), end: normalizedToday };
+    case 'month':
+      return { start: startOfMonth(normalizedToday), end: normalizedToday };
+    case 'three_months':
+      return { start: startOfMonth(subMonths(normalizedToday, 2)), end: normalizedToday };
+    case 'year':
+      return { start: startOfYear(normalizedToday), end: normalizedToday };
+  }
+}
+
+function calculateMetrics(logs: DailyLog[], totalDays: number): MetricsData {
+  // Create a map of logs by date
+  const logsByDate = new Map<string, DailyLog>();
+  logs.forEach((log) => logsByDate.set(log.date, log));
+
+  // Variable meals: count all variable meals logged
+  let variableMealsCount = 0;
+  logs.forEach((log) => {
+    variableMealsCount += log.variable_meals?.length || 0;
+  });
+  const variableMealsTarget = totalDays * 2;
+
+  // Fixed meals: count completed fixed meals (5 per day)
+  let fixedMealsCount = 0;
+  logs.forEach((log) => {
+    if (log.fixed_meals) {
+      fixedMealsCount += Object.values(log.fixed_meals).filter(Boolean).length;
+    }
+  });
+  const fixedMealsTarget = totalDays * 5;
+
+  // Weightlifting: count unique days with weightlifting
+  const weightliftingDays = new Set<string>();
+  logs.forEach((log) => {
+    log.fitness_activities?.forEach((activity) => {
+      if (activity.type === 'weightlifting') {
+        weightliftingDays.add(log.date);
+      }
+    });
+  });
+
+  // Basketball: count unique days with basketball training
+  const basketballDays = new Set<string>();
+  logs.forEach((log) => {
+    log.fitness_activities?.forEach((activity) => {
+      if (activity.type === 'basketball_training') {
+        basketballDays.add(log.date);
+      }
+    });
+  });
+
+  // Cheat meals: count all cheat meals
+  let cheatMealsCount = 0;
+  logs.forEach((log) => {
+    cheatMealsCount += log.cheat_meals?.length || 0;
+  });
+  const cheatMealsTarget = totalDays * 2;
+
+  return {
+    variableMeals: {
+      count: variableMealsCount,
+      total: variableMealsTarget,
+      percentage: variableMealsTarget > 0 ? (variableMealsCount / variableMealsTarget) * 100 : 0,
+    },
+    fixedMeals: {
+      count: fixedMealsCount,
+      total: fixedMealsTarget,
+      percentage: fixedMealsTarget > 0 ? (fixedMealsCount / fixedMealsTarget) * 100 : 0,
+    },
+    weightlifting: {
+      count: weightliftingDays.size,
+      total: totalDays,
+      percentage: totalDays > 0 ? (weightliftingDays.size / totalDays) * 100 : 0,
+    },
+    basketball: {
+      count: basketballDays.size,
+      total: totalDays,
+      percentage: totalDays > 0 ? (basketballDays.size / totalDays) * 100 : 0,
+    },
+    cheatMeals: {
+      count: cheatMealsCount,
+      total: cheatMealsTarget,
+      percentage: cheatMealsTarget > 0 ? (cheatMealsCount / cheatMealsTarget) * 100 : 0,
+    },
+  };
+}
+
+function calculateCompoundScore(metrics: MetricsData): number {
+  // Calculate individual scores (0-100)
+  const variableMealsScore = Math.min(100, (metrics.variableMeals.percentage / TARGETS.variableMeals) * 100);
+  const fixedMealsScore = Math.min(100, (metrics.fixedMeals.percentage / TARGETS.fixedMeals) * 100);
+  const weightliftingScore = Math.min(100, (metrics.weightlifting.percentage / TARGETS.weightlifting) * 100);
+  const basketballScore = Math.min(100, (metrics.basketball.percentage / TARGETS.basketball) * 100);
+
+  // Cheat meals inverse scoring: 0% cheat = 100 score, at target = 50 score
+  const cheatMealsScore = Math.max(0, 100 - (metrics.cheatMeals.percentage / TARGETS.cheatMeals) * 50);
+
+  // Weighted average
+  const compoundScore =
+    variableMealsScore * 0.25 +
+    fixedMealsScore * 0.25 +
+    weightliftingScore * 0.20 +
+    basketballScore * 0.15 +
+    cheatMealsScore * 0.15;
+
+  return compoundScore;
+}
 
 export default function ProgressPage() {
+  const [timeRange, setTimeRange] = useState<TimeRange>('week');
   const [logs, setLogs] = useState<DailyLog[]>([]);
-  const [streak, setStreak] = useState<StreakData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // Load logs for the entire year
+      // Load all logs for the year (to cover all time ranges)
       const yearStart = format(startOfYear(today), 'yyyy-MM-dd');
       const yearEnd = format(endOfYear(today), 'yyyy-MM-dd');
-      const [logsData, streakData] = await Promise.all([
-        getDailyLogsRange(yearStart, yearEnd),
-        getStreakData(),
-      ]);
-
+      const logsData = await getDailyLogsRange(yearStart, yearEnd);
       setLogs(logsData);
-      setStreak(streakData);
-
-      // Calculate and update streaks
-      await calculateAndUpdateStreaks(logsData, streakData);
     } catch (error) {
       console.error('Error loading progress data:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  const calculateAndUpdateStreaks = async (logsData: DailyLog[], existingStreak: StreakData | null) => {
-    const logsByDate = new Map<string, DailyLog>();
-    logsData.forEach((log) => {
-      logsByDate.set(log.date, log);
-    });
-
-    // Calculate meal streak (no cheat meals)
-    let currentStreak = 0;
-    let checkDate = subDays(today, 1);
-    const todayLog = logsByDate.get(format(today, 'yyyy-MM-dd'));
-
-    if (todayLog && isCleanDay(todayLog)) {
-      currentStreak = 1;
-      checkDate = subDays(today, 1);
-    } else if (todayLog && !isCleanDay(todayLog)) {
-      currentStreak = 0;
-    } else {
-      currentStreak = 0;
-    }
-
-    let consecutiveDate = checkDate;
-    while (true) {
-      const dateStr = format(consecutiveDate, 'yyyy-MM-dd');
-      const log = logsByDate.get(dateStr);
-
-      if (!log || !isCleanDay(log)) {
-        break;
-      }
-
-      currentStreak++;
-      consecutiveDate = subDays(consecutiveDate, 1);
-    }
-
-    // Calculate fitness streak (consecutive days with fitness, any day counts)
-    // Streak resets if previous week's goals weren't met (3 weightlifting, 2 basketball)
-    let fitnessStreak = 0;
-
-    // Helper to count weekly fitness activities
-    const countWeeklyFitness = (weekStart: Date, weekEnd: Date) => {
-      let weightlifting = 0;
-      let basketball = 0;
-      const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
-      days.forEach((day) => {
-        const dateStr = format(day, 'yyyy-MM-dd');
-        const log = logsByDate.get(dateStr);
-        if (log?.fitness_activities) {
-          log.fitness_activities.forEach((a) => {
-            if (a.type === 'weightlifting') weightlifting++;
-            if (a.type === 'basketball_training') basketball++;
-          });
-        }
-      });
-      return { weightlifting, basketball };
-    };
-
-    // Check if previous week met goals
-    const lastWeekStart = startOfWeek(subWeeks(today, 1), { weekStartsOn: 1 });
-    const lastWeekEnd = endOfWeek(subWeeks(today, 1), { weekStartsOn: 1 });
-    const lastWeekFitness = countWeeklyFitness(lastWeekStart, lastWeekEnd);
-    const lastWeekGoalsMet = lastWeekFitness.weightlifting >= 3 && lastWeekFitness.basketball >= 2;
-
-    // If last week goals weren't met, streak can only count from this week
-    const earliestStreakDate = lastWeekGoalsMet ? null : startOfWeek(today, { weekStartsOn: 1 });
-
-    // Count consecutive days with fitness (backwards from today)
-    const todayFitness = logsByDate.get(format(today, 'yyyy-MM-dd'));
-    if (todayFitness && hasFitnessActivity(todayFitness)) {
-      fitnessStreak = 1;
-    }
-
-    let fitnessConsecutiveDate = subDays(today, 1);
-    while (true) {
-      // Stop if we've gone past the earliest allowed date (when last week goals weren't met)
-      if (earliestStreakDate && fitnessConsecutiveDate < earliestStreakDate) {
-        break;
-      }
-
-      const dateStr = format(fitnessConsecutiveDate, 'yyyy-MM-dd');
-      const log = logsByDate.get(dateStr);
-
-      if (!log || !hasFitnessActivity(log)) {
-        break;
-      }
-
-      fitnessStreak++;
-      fitnessConsecutiveDate = subDays(fitnessConsecutiveDate, 1);
-
-      // Check week boundaries - if entering a new week, verify that week's goals were met
-      const prevWeekStart = startOfWeek(fitnessConsecutiveDate, { weekStartsOn: 1 });
-      const currentWeekStart = startOfWeek(subDays(fitnessConsecutiveDate, -1), { weekStartsOn: 1 });
-      if (prevWeekStart.getTime() !== currentWeekStart.getTime()) {
-        const prevWeekEnd = endOfWeek(fitnessConsecutiveDate, { weekStartsOn: 1 });
-        const prevWeekFitness = countWeeklyFitness(prevWeekStart, prevWeekEnd);
-        if (prevWeekFitness.weightlifting < 3 || prevWeekFitness.basketball < 2) {
-          break; // That week didn't meet goals, stop counting
-        }
-      }
-    }
-
-    const longestStreak = Math.max(existingStreak?.longest_streak || 0, currentStreak);
-    const longestFitnessStreak = Math.max(existingStreak?.longest_fitness_streak || 0, fitnessStreak);
-    const lastCleanDay = currentStreak > 0 ? format(today, 'yyyy-MM-dd') : null;
-    const lastFitnessDay = fitnessStreak > 0 ? format(today, 'yyyy-MM-dd') : null;
-
-    try {
-      await updateStreakData(
-        currentStreak,
-        longestStreak,
-        lastCleanDay,
-        fitnessStreak,
-        longestFitnessStreak,
-        lastFitnessDay
-      );
-      setStreak({
-        id: '00000000-0000-0000-0000-000000000001',
-        current_streak: currentStreak,
-        longest_streak: longestStreak,
-        last_clean_day: lastCleanDay,
-        fitness_streak: fitnessStreak,
-        longest_fitness_streak: longestFitnessStreak,
-        last_fitness_day: lastFitnessDay,
-      });
-    } catch (error) {
-      console.error('Error updating streak:', error);
-    }
-  };
+  }, [today]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // Calculate stats for different periods
-  const weekStats = useMemo(() => {
-    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
-    const weekLogs = logs.filter((log) => {
-      const logDate = new Date(log.date);
-      return logDate >= weekStart && logDate <= weekEnd;
-    });
-    const daysInWeek = eachDayOfInterval({ start: weekStart, end: today }).length;
-    const stats = calculateStats(weekLogs);
-    return { ...stats, totalDays: Math.min(stats.totalDays || daysInWeek, daysInWeek) };
-  }, [logs, today]);
+  const { filteredLogs, totalDays, metrics, compoundScore } = useMemo(() => {
+    const { start, end } = getDateRange(timeRange, today);
+    const daysInRange = eachDayOfInterval({ start, end }).length;
 
-  const monthStats = useMemo(() => {
-    const monthStart = startOfMonth(today);
-    const monthLogs = logs.filter((log) => {
-      const logDate = new Date(log.date);
-      return logDate >= monthStart && logDate <= today;
-    });
-    const daysInMonth = eachDayOfInterval({ start: monthStart, end: today }).length;
-    const stats = calculateStats(monthLogs);
-    return { ...stats, totalDays: Math.min(stats.totalDays || daysInMonth, daysInMonth) };
-  }, [logs, today]);
+    const startStr = format(start, 'yyyy-MM-dd');
+    const endStr = format(end, 'yyyy-MM-dd');
 
-  const yearStats = useMemo(() => {
-    const yearStart = startOfYear(today);
-    const yearLogs = logs.filter((log) => {
-      const logDate = new Date(log.date);
-      return logDate >= yearStart && logDate <= today;
-    });
-    const daysInYear = eachDayOfInterval({ start: yearStart, end: today }).length;
-    const stats = calculateStats(yearLogs);
-    return { ...stats, totalDays: Math.min(stats.totalDays || daysInYear, daysInYear) };
-  }, [logs, today]);
-
-  // Calculate fitness stats for the week
-  const weekFitnessStats = useMemo(() => {
-    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-    const weekLogs = logs.filter((log) => {
-      const logDate = new Date(log.date);
-      return logDate >= weekStart && logDate <= today;
-    });
-    return calculateFitnessStats(weekLogs);
-  }, [logs, today]);
-
-  // Build day statuses for calendar
-  const dayStatuses = useMemo(() => {
-    const statuses = new Map<string, DayStatus>();
-    logs.forEach((log) => {
-      statuses.set(log.date, {
-        hasData: true,
-        isClean: isCleanDay(log),
-        variableMealsCount: log.variable_meals?.length || 0,
-        fixedMealsCompleted: Object.values(log.fixed_meals || {}).filter(Boolean).length,
-        cheatMealsCount: log.cheat_meals?.length || 0,
-        fitnessActivitiesCount: log.fitness_activities?.length || 0,
-        hasFitness: hasFitnessActivity(log),
-      });
-    });
-    return statuses;
-  }, [logs]);
-
-  // Weekly goals
-  const weeklyGoals = useMemo(() => {
-    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
-    const daysToCheck = eachDayOfInterval({ start: weekStart, end: today });
-
-    let cleanDays = 0;
-    let weightliftingSessions = 0;
-    let basketballSessions = 0;
-
-    // Count activities from logs (need full week data, not just day statuses)
-    logs.forEach((log) => {
-      const logDate = new Date(log.date);
-      if (logDate >= weekStart && logDate <= weekEnd) {
-        log.fitness_activities?.forEach((a) => {
-          if (a.type === 'weightlifting') weightliftingSessions++;
-          if (a.type === 'basketball_training') basketballSessions++;
-        });
-      }
+    const filtered = logs.filter((log) => {
+      return log.date >= startStr && log.date <= endStr;
     });
 
-    daysToCheck.forEach((day) => {
-      const dateStr = format(day, 'yyyy-MM-dd');
-      const status = dayStatuses.get(dateStr);
-      if (status && status.isClean) {
-        cleanDays++;
-      }
-    });
+    const metricsData = calculateMetrics(filtered, daysInRange);
+    const score = calculateCompoundScore(metricsData);
 
-    return [
-      {
-        id: 'clean_week',
-        name: '6 dias sin cheat meals',
-        current: cleanDays,
-        target: 6,
-        completed: cleanDays >= 6,
-      },
-      {
-        id: 'weightlifting',
-        name: 'Pesas (3 sesiones)',
-        current: weightliftingSessions,
-        target: 3,
-        completed: weightliftingSessions >= 3,
-      },
-      {
-        id: 'basketball',
-        name: 'Basketball (2 sesiones)',
-        current: basketballSessions,
-        target: 2,
-        completed: basketballSessions >= 2,
-      },
-    ];
-  }, [logs, dayStatuses, today]);
+    return {
+      filteredLogs: filtered,
+      totalDays: daysInRange,
+      metrics: metricsData,
+      compoundScore: score,
+    };
+  }, [logs, timeRange, today]);
 
   if (loading) {
     return (
@@ -317,41 +209,58 @@ export default function ProgressPage() {
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-      {/* Streak Display */}
-      <StreakDisplay
-        currentStreak={streak?.current_streak || 0}
-        longestStreak={streak?.longest_streak || 0}
-        fitnessStreak={streak?.fitness_streak || 0}
-        longestFitnessStreak={streak?.longest_fitness_streak || 0}
-      />
+      <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
 
-      {/* Weekly Goals */}
-      <WeeklyGoals goals={weeklyGoals} />
+      <CompoundScore score={compoundScore} />
 
-      {/* Stats Cards */}
-      <div className="space-y-4">
-        <StatsCard
-          title="Esta semana"
-          percentage={weekStats.percentage}
-          cleanDays={weekStats.cleanDays}
-          totalDays={weekStats.totalDays}
+      <div className="space-y-3">
+        <MetricCard
+          title="Variable Meals"
+          emoji="🍽️"
+          percentage={metrics.variableMeals.percentage}
+          target={TARGETS.variableMeals}
+          numerator={metrics.variableMeals.count}
+          denominator={metrics.variableMeals.total}
+          unit="meals"
         />
-        <StatsCard
-          title="Este mes"
-          percentage={monthStats.percentage}
-          cleanDays={monthStats.cleanDays}
-          totalDays={monthStats.totalDays}
+        <MetricCard
+          title="Fixed Meals"
+          emoji="🥗"
+          percentage={metrics.fixedMeals.percentage}
+          target={TARGETS.fixedMeals}
+          numerator={metrics.fixedMeals.count}
+          denominator={metrics.fixedMeals.total}
+          unit="meals"
         />
-        <StatsCard
-          title="Este año"
-          percentage={yearStats.percentage}
-          cleanDays={yearStats.cleanDays}
-          totalDays={yearStats.totalDays}
+        <MetricCard
+          title="Weightlifting"
+          emoji="🏋️"
+          percentage={metrics.weightlifting.percentage}
+          target={TARGETS.weightlifting}
+          numerator={metrics.weightlifting.count}
+          denominator={metrics.weightlifting.total}
+          unit="days"
+        />
+        <MetricCard
+          title="Basketball"
+          emoji="🏀"
+          percentage={metrics.basketball.percentage}
+          target={TARGETS.basketball}
+          numerator={metrics.basketball.count}
+          denominator={metrics.basketball.total}
+          unit="days"
+        />
+        <MetricCard
+          title="Cheat Meals"
+          emoji="🍕"
+          percentage={metrics.cheatMeals.percentage}
+          target={TARGETS.cheatMeals}
+          numerator={metrics.cheatMeals.count}
+          denominator={metrics.cheatMeals.total}
+          unit="meals"
+          isInverse
         />
       </div>
-
-      {/* Calendar */}
-      <CalendarView dayStatuses={dayStatuses} />
     </div>
   );
 }

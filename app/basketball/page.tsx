@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
-import { Target, Check } from 'lucide-react';
+import { Target, Check, MessageSquarePlus, X, Trash2 } from 'lucide-react';
 import { ShotSlider, SessionScore } from '@/components/basketball';
 import { Button } from '@/components/ui';
 import { DayNavigator } from '@/components/track';
@@ -27,8 +27,12 @@ export default function BasketballPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [todaySession, setTodaySession] = useState<boolean>(false);
+  const [comment, setComment] = useState<string>('');
+  const [showCommentInput, setShowCommentInput] = useState(false);
+  const [commentDraft, setCommentDraft] = useState('');
 
   const dateString = format(selectedDate, 'yyyy-MM-dd');
+  const commentKey = `basketball-comment-${dateString}`;
 
   const loadSession = useCallback(async () => {
     setLoading(true);
@@ -57,6 +61,28 @@ export default function BasketballPage() {
   useEffect(() => {
     loadSession();
   }, [loadSession]);
+
+  // Load comment from localStorage when date changes
+  useEffect(() => {
+    const savedComment = localStorage.getItem(commentKey);
+    setComment(savedComment || '');
+    setShowCommentInput(false);
+    setCommentDraft('');
+  }, [commentKey]);
+
+  const handleSaveComment = () => {
+    if (commentDraft.trim()) {
+      localStorage.setItem(commentKey, commentDraft.trim());
+      setComment(commentDraft.trim());
+    }
+    setShowCommentInput(false);
+    setCommentDraft('');
+  };
+
+  const handleDeleteComment = () => {
+    localStorage.removeItem(commentKey);
+    setComment('');
+  };
 
   const handleShotChange = (shotId: keyof ShotData, value: number) => {
     setShots((prev) => ({
@@ -116,7 +142,7 @@ export default function BasketballPage() {
       <DayNavigator selectedDate={selectedDate} onDateChange={setSelectedDate} />
 
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-4">
         <div className="w-12 h-12 rounded-full bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center">
           <Target className="w-6 h-6 text-accent-600 dark:text-accent-400" />
         </div>
@@ -128,6 +154,63 @@ export default function BasketballPage() {
             Registra tus tiros de la sesion
           </p>
         </div>
+      </div>
+
+      {/* Comment Section */}
+      <div className="mb-6">
+        {comment ? (
+          <div className="p-3 rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm text-neutral-700 dark:text-neutral-300 flex-1">
+                {comment}
+              </p>
+              <button
+                onClick={handleDeleteComment}
+                className="p-1 text-neutral-400 hover:text-danger-500 transition-colors"
+                aria-label="Eliminar comentario"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ) : showCommentInput ? (
+          <div className="space-y-2">
+            <textarea
+              value={commentDraft}
+              onChange={(e) => setCommentDraft(e.target.value)}
+              placeholder="Escribe un comentario sobre la sesion..."
+              className="w-full p-3 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent-500"
+              rows={2}
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveComment}
+                disabled={!commentDraft.trim()}
+                className="px-3 py-1.5 text-sm font-medium rounded-lg bg-accent-500 text-white hover:bg-accent-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Guardar
+              </button>
+              <button
+                onClick={() => {
+                  setShowCommentInput(false);
+                  setCommentDraft('');
+                }}
+                className="px-3 py-1.5 text-sm font-medium rounded-lg text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowCommentInput(true)}
+            className="flex items-center gap-2 text-sm text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
+          >
+            <MessageSquarePlus className="w-4 h-4" />
+            Agregar comentario
+          </button>
+        )}
       </div>
 
       {/* Today's Session Badge */}

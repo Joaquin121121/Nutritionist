@@ -45,16 +45,16 @@ export const GROCERY_LIST: GroceryItemData[] = [
 
   // Verduras
   { key: "broccoli", name: "Brocoli", quantity: "1kg", category: "verduras" },
-  { key: "espinaca", name: "Espinaca", quantity: "1kg", category: "verduras" },
+  { key: "espinaca", name: "Espinaca", quantity: "500g", category: "verduras" },
   {
     key: "zanahorias",
     name: "Zanahorias",
-    quantity: "1kg",
+    quantity: "500g",
     category: "verduras",
   },
   {
-    key: "zanahorias",
-    name: "Zanahorias",
+    key: "pumpkin",
+    name: "Zapallito",
     quantity: "1kg",
     category: "verduras",
   },
@@ -93,7 +93,7 @@ export const GROCERY_LIST: GroceryItemData[] = [
     quantity: "1",
     category: "lacteos",
   },
-  { key: "leche", name: "Leche", quantity: "1 litro", category: "lacteos" },
+  { key: "leche", name: "Leche", quantity: "4 litros", category: "lacteos" },
 
   // Otros
   {
@@ -104,9 +104,15 @@ export const GROCERY_LIST: GroceryItemData[] = [
   },
   { key: "cacao", name: "Cacao", quantity: "1 paquete", category: "otros" },
   {
+    key: "papel_aluminio",
+    name: "Papel aluminio",
+    quantity: "1 rollo",
+    category: "otros",
+  },
+  {
     key: "pasta_mani",
     name: "Pasta de mani",
-    quantity: "1 frasco",
+    quantity: "2 frascos",
     category: "otros",
   },
 
