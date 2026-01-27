@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Utensils, TrendingUp, ShoppingCart, Target, BarChart3 } from 'lucide-react';
+import { Utensils, TrendingUp, ShoppingCart, Target, Brain } from 'lucide-react';
 
 const tabs = [
   { href: '/track', label: 'Track', icon: Utensils },
   { href: '/progress', label: 'Progress', icon: TrendingUp },
   { href: '/groceries', label: 'Compras', icon: ShoppingCart },
   { href: '/basketball', label: 'Basket', icon: Target },
-  { href: '/hoops-stats', label: 'Stats', icon: BarChart3 },
+  { href: '/deep-work', label: 'Focus', icon: Brain },
 ];
 
 export function BottomNav() {

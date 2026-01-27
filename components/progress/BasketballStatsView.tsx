@@ -1,31 +1,16 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { format, startOfWeek, startOfMonth, subDays } from 'date-fns';
 import { Trophy, TrendingUp, TrendingDown, Target, BarChart3 } from 'lucide-react';
-import { getAllBasketballSessions } from '@/lib/database';
 import { SHOT_TYPES } from '@/data/shots';
 import type { BasketballSession, ShotData, ShotStats } from '@/types';
 
-export default function HoopsStatsPage() {
-  const [sessions, setSessions] = useState<BasketballSession[]>([]);
-  const [loading, setLoading] = useState(true);
+interface BasketballStatsViewProps {
+  sessions: BasketballSession[];
+}
 
-  useEffect(() => {
-    const loadSessions = async () => {
-      setLoading(true);
-      try {
-        const data = await getAllBasketballSessions();
-        setSessions(data);
-      } catch (error) {
-        console.error('Error loading basketball sessions:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadSessions();
-  }, []);
-
+export function BasketballStatsView({ sessions }: BasketballStatsViewProps) {
   // Calculate best score
   const bestScore = useMemo(() => {
     if (sessions.length === 0) return null;
@@ -214,18 +199,10 @@ export default function HoopsStatsPage() {
     return 'bg-danger-100 dark:bg-danger-900/30';
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-pulse text-neutral-500">Cargando...</div>
-      </div>
-    );
-  }
-
   if (sessions.length === 0) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-6">
-        <div className="flex items-center gap-3 mb-6">
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
             <BarChart3 className="w-6 h-6 text-primary-600 dark:text-primary-400" />
           </div>
@@ -253,7 +230,7 @@ export default function HoopsStatsPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">

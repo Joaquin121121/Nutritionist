@@ -5,4 +5,8 @@ export { WeeklyGoals } from './WeeklyGoals';
 export { TimeRangeSelector } from './TimeRangeSelector';
 export { MetricCard } from './MetricCard';
 export { CompoundScore } from './CompoundScore';
+export { SwipeIndicator } from './SwipeIndicator';
+export { HealthProgressView } from './HealthProgressView';
+export { BasketballStatsView } from './BasketballStatsView';
+export { SwipeableProgress } from './SwipeableProgress';
 export type { TimeRange } from './TimeRangeSelector';

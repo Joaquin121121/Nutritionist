@@ -1,5 +1,5 @@
 import { getSupabase } from './supabase';
-import type { DailyLog, GroceryItemDB, StreakData, CheatMeal, FitnessActivity, BasketballSession, ShotData } from '@/types';
+import type { DailyLog, GroceryItemDB, StreakData, CheatMeal, FitnessActivity, BasketballSession, ShotData, DeepWorkTask } from '@/types';
 import { DEFAULT_FIXED_MEALS } from '@/data/meals';
 import { calculateSessionScore } from '@/data/shots';
 
@@ -321,4 +321,119 @@ export function calculateFitnessStats(logs: DailyLog[]): {
   const percentage = totalDays > 0 ? Math.round((fitnessDays / totalDays) * 100) : 0;
 
   return { fitnessDays, totalDays, percentage };
+}
+
+// ============ Deep Work Tasks ============
+
+export async function getDeepWorkTasks(date: string): Promise<DeepWorkTask[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('deep_work_tasks')
+    .select('*')
+    .eq('date', date)
+    .order('sort_order', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching deep work tasks:', error);
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function getDeepWorkTasksRange(
+  startDate: string,
+  endDate: string
+): Promise<DeepWorkTask[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('deep_work_tasks')
+    .select('*')
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .order('date', { ascending: true })
+    .order('sort_order', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching deep work tasks range:', error);
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function createDeepWorkTask(
+  date: string,
+  title: string
+): Promise<DeepWorkTask | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  // Get max sort_order for this date
+  const existingTasks = await getDeepWorkTasks(date);
+  const maxOrder = existingTasks.reduce((max, t) => Math.max(max, t.sort_order), -1);
+
+  const { data, error } = await supabase
+    .from('deep_work_tasks')
+    .insert({
+      date,
+      title,
+      completed: false,
+      sort_order: maxOrder + 1,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating deep work task:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function updateDeepWorkTask(
+  id: string,
+  updates: { title?: string; completed?: boolean; sort_order?: number }
+): Promise<DeepWorkTask | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  const payload: Record<string, unknown> = { ...updates };
+  if (updates.completed !== undefined) {
+    payload.completed_at = updates.completed ? new Date().toISOString() : null;
+  }
+
+  const { data, error } = await supabase
+    .from('deep_work_tasks')
+    .update(payload)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating deep work task:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function deleteDeepWorkTask(id: string): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from('deep_work_tasks')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting deep work task:', error);
+    throw error;
+  }
 }

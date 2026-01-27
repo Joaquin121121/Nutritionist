@@ -120,3 +120,14 @@ export interface ShotStats {
   sessionsCount: number;
   averagePerSession: number;
 }
+
+// Deep Work Types
+export interface DeepWorkTask {
+  id: string;
+  date: string;
+  title: string;
+  completed: boolean;
+  completed_at: string | null;
+  created_at: string;
+  sort_order: number;
+}
