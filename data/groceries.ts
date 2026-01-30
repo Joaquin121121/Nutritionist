@@ -27,7 +27,7 @@ export const GROCERY_LIST: GroceryItemData[] = [
   {
     key: "lentejas",
     name: "Hamburguesas de Lentejas",
-    quantity: "3",
+    quantity: "4",
     category: "carbohidratos",
   },
   {
@@ -56,6 +56,12 @@ export const GROCERY_LIST: GroceryItemData[] = [
     key: "pumpkin",
     name: "Zapallito",
     quantity: "1kg",
+    category: "verduras",
+  },
+  {
+    key: "zanahorias_congeladas",
+    name: "Zanahorias Congeladas",
+    quantity: "1 bolsa",
     category: "verduras",
   },
 
@@ -113,6 +119,12 @@ export const GROCERY_LIST: GroceryItemData[] = [
     key: "pasta_mani",
     name: "Pasta de mani",
     quantity: "2 frascos",
+    category: "otros",
+  },
+  {
+    key: "miel",
+    name: "Miel",
+    quantity: "1 frasco",
     category: "otros",
   },
 

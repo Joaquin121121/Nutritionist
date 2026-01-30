@@ -6,12 +6,14 @@ import type { DeepWorkTask } from '@/types';
 
 interface TaskListProps {
   tasks: DeepWorkTask[];
-  onAdd: (title: string) => void;
+  onAdd: (title: string, date: string) => void;
   onToggle: (id: string, completed: boolean) => void;
   onDelete: (id: string) => void;
+  onEdit: (id: string, updates: { title?: string; date?: string }) => void;
+  defaultDate: string;
 }
 
-export function TaskList({ tasks, onAdd, onToggle, onDelete }: TaskListProps) {
+export function TaskList({ tasks, onAdd, onToggle, onDelete, onEdit, defaultDate }: TaskListProps) {
   // Sort: incomplete tasks first, then completed
   const sortedTasks = [...tasks].sort((a, b) => {
     if (a.completed !== b.completed) {
@@ -29,11 +31,12 @@ export function TaskList({ tasks, onAdd, onToggle, onDelete }: TaskListProps) {
             task={task}
             onToggle={onToggle}
             onDelete={onDelete}
+            onEdit={onEdit}
           />
         ))}
       </div>
 
-      <TaskInput onAdd={onAdd} />
+      <TaskInput onAdd={onAdd} defaultDate={defaultDate} />
     </div>
   );
 }

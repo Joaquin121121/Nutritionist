@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek } from 'date-fns';
 import { MessageSquarePlus, Trash2 } from 'lucide-react';
 import { DayNavigator, MealCard, CheatMealInput, FitnessSection } from '@/components/track';
 import { Checkbox } from '@/components/ui';
 import { VARIABLE_MEALS, FIXED_MEALS, DEFAULT_FIXED_MEALS } from '@/data/meals';
-import { getDailyLog, upsertDailyLog } from '@/lib/database';
+import { getDailyLog, getDailyLogsRange, upsertDailyLog } from '@/lib/database';
 import type { DailyLog, CheatMeal, FitnessActivity, FitnessActivityType } from '@/types';
 
 const MAX_VARIABLE_MEALS = 2;
@@ -21,6 +21,7 @@ export default function TrackPage() {
   const [comment, setComment] = useState<string>('');
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentDraft, setCommentDraft] = useState('');
+  const [weeklyServings, setWeeklyServings] = useState<Record<string, number>>({});
 
   const dateString = format(selectedDate, 'yyyy-MM-dd');
   const commentKey = `track-comment-${dateString}`;
@@ -47,9 +48,26 @@ export default function TrackPage() {
     }
   }, [dateString]);
 
+  const loadWeeklyServings = useCallback(async () => {
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+    const logs = await getDailyLogsRange(
+      format(weekStart, 'yyyy-MM-dd'),
+      format(weekEnd, 'yyyy-MM-dd')
+    );
+    const counts: Record<string, number> = {};
+    logs.forEach(log => {
+      (log.variable_meals || []).forEach(mealId => {
+        counts[mealId] = (counts[mealId] || 0) + 1;
+      });
+    });
+    setWeeklyServings(counts);
+  }, []);
+
   useEffect(() => {
     loadDailyLog();
-  }, [loadDailyLog]);
+    loadWeeklyServings();
+  }, [loadDailyLog, loadWeeklyServings]);
 
   // Load comment from localStorage when date changes
   useEffect(() => {
@@ -246,6 +264,8 @@ export default function TrackPage() {
                 isSelected={isSelected}
                 onToggle={() => handleVariableMealToggle(meal.id)}
                 disabled={isDisabled}
+                weeklyCount={weeklyServings[meal.id] || 0}
+                weeklyTarget={meal.weeklyServings}
               />
             );
           })}

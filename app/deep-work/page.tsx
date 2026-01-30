@@ -53,11 +53,13 @@ export default function DeepWorkPage() {
     loadTasks();
   }, [loadTasks]);
 
-  const handleAddTask = async (title: string) => {
+  const handleAddTask = async (title: string, date: string) => {
     try {
-      const newTask = await createDeepWorkTask(dateString, title);
+      const newTask = await createDeepWorkTask(date, title);
       if (newTask) {
-        setTasks((prev) => [...prev, newTask]);
+        if (date === dateString) {
+          setTasks((prev) => [...prev, newTask]);
+        }
         setAllTasks((prev) => [...prev, newTask]);
       }
     } catch (error) {
@@ -88,6 +90,27 @@ export default function DeepWorkPage() {
       setAllTasks((prev) => prev.filter((t) => t.id !== id));
     } catch (error) {
       console.error('Error deleting task:', error);
+    }
+  };
+
+  const handleEditTask = async (id: string, updates: { title?: string; date?: string }) => {
+    try {
+      const updatedTask = await updateDeepWorkTask(id, updates);
+      if (updatedTask) {
+        // If date changed, remove from current view if it no longer belongs
+        if (updates.date && updates.date !== dateString) {
+          setTasks((prev) => prev.filter((t) => t.id !== id));
+        } else {
+          setTasks((prev) =>
+            prev.map((t) => (t.id === id ? updatedTask : t))
+          );
+        }
+        setAllTasks((prev) =>
+          prev.map((t) => (t.id === id ? updatedTask : t))
+        );
+      }
+    } catch (error) {
+      console.error('Error editing task:', error);
     }
   };
 
@@ -128,6 +151,8 @@ export default function DeepWorkPage() {
           onAdd={handleAddTask}
           onToggle={handleToggleTask}
           onDelete={handleDeleteTask}
+          onEdit={handleEditTask}
+          defaultDate={dateString}
         />
       )}
 

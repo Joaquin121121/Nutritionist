@@ -31,6 +31,12 @@ export const VARIABLE_MEALS: VariableMeal[] = [
     emoji: "🍔",
     weeklyServings: 2,
   },
+  {
+    id: "gohan_zanahoria",
+    name: "Gohan con zanahoria",
+    emoji: "🍚",
+    weeklyServings: 0,
+  },
 ];
 
 export const FIXED_MEALS: FixedMeal[] = [

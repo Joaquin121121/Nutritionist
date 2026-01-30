@@ -9,6 +9,7 @@ import {
   startOfDay,
   subWeeks,
   subMonths,
+  subDays,
   eachDayOfInterval,
 } from 'date-fns';
 import {
@@ -35,19 +36,36 @@ const TARGETS = {
   cheatMeals: 21.4,
 };
 
-function getDateRange(range: TimeRange, today: Date): { start: Date; end: Date } {
+function hasAnyActivity(log: DailyLog | undefined): boolean {
+  if (!log) return false;
+  return (
+    (log.variable_meals?.length ?? 0) > 0 ||
+    Object.values(log.fixed_meals ?? {}).some(Boolean) ||
+    (log.fitness_activities?.length ?? 0) > 0
+  );
+}
+
+function getDateRange(range: TimeRange, today: Date, logs: DailyLog[]): { start: Date; end: Date } {
   const normalizedToday = startOfDay(today);
+  const todayStr = format(normalizedToday, 'yyyy-MM-dd');
+  const todayLog = logs.find(log => log.date === todayStr);
+  const hasTodayActivity = hasAnyActivity(todayLog);
+
+  const endDate = hasTodayActivity
+    ? normalizedToday
+    : startOfDay(subDays(normalizedToday, 1));
+
   switch (range) {
     case 'week':
-      return { start: startOfWeek(normalizedToday, { weekStartsOn: 1 }), end: normalizedToday };
+      return { start: startOfWeek(normalizedToday, { weekStartsOn: 1 }), end: endDate };
     case 'two_weeks':
-      return { start: startOfWeek(subWeeks(normalizedToday, 1), { weekStartsOn: 1 }), end: normalizedToday };
+      return { start: startOfWeek(subWeeks(normalizedToday, 1), { weekStartsOn: 1 }), end: endDate };
     case 'month':
-      return { start: startOfMonth(normalizedToday), end: normalizedToday };
+      return { start: startOfMonth(normalizedToday), end: endDate };
     case 'three_months':
-      return { start: startOfMonth(subMonths(normalizedToday, 2)), end: normalizedToday };
+      return { start: startOfMonth(subMonths(normalizedToday, 2)), end: endDate };
     case 'year':
-      return { start: startOfYear(normalizedToday), end: normalizedToday };
+      return { start: startOfYear(normalizedToday), end: endDate };
   }
 }
 
@@ -146,7 +164,7 @@ export function HealthProgressView({ logs, timeRange, onTimeRangeChange }: Healt
   const today = useMemo(() => new Date(), []);
 
   const { metrics, compoundScore } = useMemo(() => {
-    const { start, end } = getDateRange(timeRange, today);
+    const { start, end } = getDateRange(timeRange, today, logs);
     const daysInRange = eachDayOfInterval({ start, end }).length;
 
     const startStr = format(start, 'yyyy-MM-dd');

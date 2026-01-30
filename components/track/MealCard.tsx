@@ -9,6 +9,8 @@ interface MealCardProps {
   isSelected: boolean;
   onToggle: () => void;
   disabled?: boolean;
+  weeklyCount?: number;
+  weeklyTarget?: number;
 }
 
 export function MealCard({
@@ -17,7 +19,11 @@ export function MealCard({
   isSelected,
   onToggle,
   disabled = false,
+  weeklyCount = 0,
+  weeklyTarget = 0,
 }: MealCardProps) {
+  const showWeeklyBadge = weeklyTarget > 0;
+  const targetMet = weeklyCount >= weeklyTarget;
   return (
     <button
       onClick={onToggle}
@@ -32,15 +38,28 @@ export function MealCard({
     >
       <div className="flex items-center gap-3">
         <span className="text-3xl">{emoji}</span>
-        <span
-          className={`flex-1 font-medium ${
-            isSelected
-              ? 'text-primary-700 dark:text-primary-300'
-              : 'text-neutral-700 dark:text-neutral-300'
-          }`}
-        >
-          {name}
-        </span>
+        <div className="flex-1 flex items-center gap-2">
+          <span
+            className={`font-medium ${
+              isSelected
+                ? 'text-primary-700 dark:text-primary-300'
+                : 'text-neutral-700 dark:text-neutral-300'
+            }`}
+          >
+            {name}
+          </span>
+          {showWeeklyBadge && (
+            <span
+              className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                targetMet
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                  : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400'
+              }`}
+            >
+              {weeklyCount}/{weeklyTarget}
+            </span>
+          )}
+        </div>
         {isSelected && (
           <div className="w-6 h-6 rounded-full bg-primary-500 flex items-center justify-center">
             <Check className="w-4 h-4 text-white" strokeWidth={3} />

@@ -398,7 +398,7 @@ export async function createDeepWorkTask(
 
 export async function updateDeepWorkTask(
   id: string,
-  updates: { title?: string; completed?: boolean; sort_order?: number }
+  updates: { title?: string; completed?: boolean; sort_order?: number; date?: string }
 ): Promise<DeepWorkTask | null> {
   const supabase = getSupabase();
   if (!supabase) return null;
