@@ -1,5 +1,5 @@
 import { getSupabase } from './supabase';
-import type { DailyLog, GroceryItemDB, StreakData, CheatMeal, FitnessActivity, BasketballSession, ShotData, DeepWorkTask } from '@/types';
+import type { DailyLog, GroceryItemDB, StreakData, CheatMeal, FitnessActivity, BasketballSession, ShotData, DeepWorkTask, DeepWorkSession, DeepWorkTargetMinutes } from '@/types';
 import { DEFAULT_FIXED_MEALS } from '@/data/meals';
 import { calculateSessionScore } from '@/data/shots';
 
@@ -436,4 +436,85 @@ export async function deleteDeepWorkTask(id: string): Promise<void> {
     console.error('Error deleting deep work task:', error);
     throw error;
   }
+}
+
+// ============ Deep Work Sessions (Timer-based) ============
+
+export async function getDeepWorkSession(date: string): Promise<DeepWorkSession | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from('deep_work_sessions')
+    .select('*')
+    .eq('date', date)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error fetching deep work session:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function createDeepWorkSession(
+  date: string,
+  targetMinutes: DeepWorkTargetMinutes
+): Promise<DeepWorkSession | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from('deep_work_sessions')
+    .insert({
+      date,
+      target_minutes: targetMinutes,
+      logged_minutes: 0,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating deep work session:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function addLoggedMinutes(
+  sessionId: string,
+  minutes: number
+): Promise<DeepWorkSession | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  // First get current logged_minutes
+  const { data: current, error: fetchError } = await supabase
+    .from('deep_work_sessions')
+    .select('logged_minutes')
+    .eq('id', sessionId)
+    .single();
+
+  if (fetchError) {
+    console.error('Error fetching session:', fetchError);
+    throw fetchError;
+  }
+
+  const newTotal = (current?.logged_minutes ?? 0) + minutes;
+
+  const { data, error } = await supabase
+    .from('deep_work_sessions')
+    .update({ logged_minutes: newTotal })
+    .eq('id', sessionId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error adding logged minutes:', error);
+    throw error;
+  }
+
+  return data;
 }

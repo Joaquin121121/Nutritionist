@@ -1,6 +1,4 @@
-export { NotesSection } from './NotesSection';
-export { TaskItem } from './TaskItem';
-export { TaskInput } from './TaskInput';
-export { TaskList } from './TaskList';
-export { DeepWorkStats } from './DeepWorkStats';
-export { DateQuickSelect } from './DateQuickSelect';
+export { TargetSelector } from './TargetSelector';
+export { WorkTimer } from './WorkTimer';
+export { RestTimer } from './RestTimer';
+export { ProgressBar } from './ProgressBar';

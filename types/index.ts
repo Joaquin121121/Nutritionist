@@ -121,7 +121,7 @@ export interface ShotStats {
   averagePerSession: number;
 }
 
-// Deep Work Types
+// Deep Work Types (legacy - kept for compatibility)
 export interface DeepWorkTask {
   id: string;
   date: string;
@@ -130,4 +130,23 @@ export interface DeepWorkTask {
   completed_at: string | null;
   created_at: string;
   sort_order: number;
+}
+
+// Deep Work Session Types (new timer-based system)
+export type DeepWorkTargetMinutes = 180 | 270 | 360;
+export type WorkIntervalMinutes = 90 | 60 | 45 | 30;
+
+export interface DeepWorkSession {
+  id: string;
+  date: string;
+  target_minutes: DeepWorkTargetMinutes;
+  logged_minutes: number;
+  created_at: string;
+}
+
+export interface TimerState {
+  isRunning: boolean;
+  startTime: number | null;  // timestamp when timer started
+  intervalMinutes: WorkIntervalMinutes;
+  elapsedSeconds: number;    // for display purposes
 }

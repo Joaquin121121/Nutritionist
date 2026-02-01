@@ -119,4 +119,20 @@ INSERT INTO grocery_items (item_key, checked) VALUES
   ('barras_zafran', false)
 ON CONFLICT (item_key) DO NOTHING;
 
+-- ============================================
+-- Deep Work Sessions Table
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS deep_work_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date DATE NOT NULL UNIQUE,
+  target_minutes INTEGER NOT NULL,  -- 180, 270, or 360
+  logged_minutes INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_deep_work_sessions_date ON deep_work_sessions(date);
+
+ALTER TABLE deep_work_sessions DISABLE ROW LEVEL SECURITY;
+
 -- Done! Your database is ready.
