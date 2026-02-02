@@ -1,4 +1,4 @@
 export { TargetSelector } from './TargetSelector';
-export { WorkTimer } from './WorkTimer';
-export { RestTimer } from './RestTimer';
+export { Timer } from './Timer';
 export { ProgressBar } from './ProgressBar';
+export { DeepWorkHistory } from './DeepWorkHistory';

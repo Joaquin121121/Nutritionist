@@ -45,7 +45,7 @@ export const FIXED_MEALS: FixedMeal[] = [
   { id: "apple", name: "Manzana", emoji: "🍎" },
   {
     id: "yogurt_strawberries",
-    name: "Yogur griego con frutillas",
+    name: "Yogur griego con frutillas y cereales",
     emoji: "🍓",
   },
   { id: "scrambled_eggs", name: "Huevos revueltos con tostada", emoji: "🍳" },

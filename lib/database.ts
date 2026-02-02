@@ -518,3 +518,25 @@ export async function addLoggedMinutes(
 
   return data;
 }
+
+export async function getDeepWorkSessionsRange(
+  startDate: string,
+  endDate: string
+): Promise<DeepWorkSession[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('deep_work_sessions')
+    .select('*')
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .order('date', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching deep work sessions range:', error);
+    throw error;
+  }
+
+  return data ?? [];
+}
