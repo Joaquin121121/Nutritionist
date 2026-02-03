@@ -100,15 +100,20 @@ export default function TrackPage() {
   };
 
   const handleVariableMealToggle = (mealId: string) => {
-    const isSelected = variableMeals.includes(mealId);
     let newMeals: string[];
 
-    if (isSelected) {
-      newMeals = variableMeals.filter((id) => id !== mealId);
-    } else if (variableMeals.length < MAX_VARIABLE_MEALS) {
+    if (variableMeals.length < MAX_VARIABLE_MEALS) {
+      // Under max: always add (allows duplicates)
       newMeals = [...variableMeals, mealId];
     } else {
-      return;
+      // At max: remove one instance of this meal if it exists
+      const lastIndex = variableMeals.lastIndexOf(mealId);
+      if (lastIndex !== -1) {
+        newMeals = [...variableMeals];
+        newMeals.splice(lastIndex, 1);
+      } else {
+        return;
+      }
     }
 
     setVariableMeals(newMeals);
@@ -252,7 +257,8 @@ export default function TrackPage() {
         </div>
         <div className="space-y-3">
           {VARIABLE_MEALS.map((meal) => {
-            const isSelected = variableMeals.includes(meal.id);
+            const selectionCount = variableMeals.filter(id => id === meal.id).length;
+            const isSelected = selectionCount > 0;
             const isDisabled = !isSelected && variableMeals.length >= MAX_VARIABLE_MEALS;
 
             return (
@@ -264,6 +270,7 @@ export default function TrackPage() {
                 isSelected={isSelected}
                 onToggle={() => handleVariableMealToggle(meal.id)}
                 disabled={isDisabled}
+                selectionCount={selectionCount}
                 weeklyCount={weeklyServings[meal.id] || 0}
                 weeklyTarget={meal.weeklyServings}
               />

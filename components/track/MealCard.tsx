@@ -9,6 +9,7 @@ interface MealCardProps {
   isSelected: boolean;
   onToggle: () => void;
   disabled?: boolean;
+  selectionCount?: number;
   weeklyCount?: number;
   weeklyTarget?: number;
 }
@@ -19,6 +20,7 @@ export function MealCard({
   isSelected,
   onToggle,
   disabled = false,
+  selectionCount = 0,
   weeklyCount = 0,
   weeklyTarget = 0,
 }: MealCardProps) {
@@ -62,7 +64,11 @@ export function MealCard({
         </div>
         {isSelected && (
           <div className="w-6 h-6 rounded-full bg-primary-500 flex items-center justify-center">
-            <Check className="w-4 h-4 text-white" strokeWidth={3} />
+            {selectionCount > 1 ? (
+              <span className="text-xs font-bold text-white">{selectionCount}</span>
+            ) : (
+              <Check className="w-4 h-4 text-white" strokeWidth={3} />
+            )}
           </div>
         )}
       </div>
