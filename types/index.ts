@@ -17,7 +17,10 @@ export interface CheatMeal {
 }
 
 // Fitness Types
-export type FitnessActivityType = 'weightlifting' | 'basketball_pickup' | 'basketball_training';
+export type FitnessActivityType =
+  | "weightlifting"
+  | "basketball_pickup"
+  | "basketball_training";
 
 export interface FitnessActivity {
   type: FitnessActivityType;
@@ -76,7 +79,7 @@ export interface DayStatus {
 }
 
 export interface PeriodStats {
-  period: 'week' | 'month' | 'year';
+  period: "week" | "month" | "year";
   cleanDays: number;
   totalDays: number;
   percentage: number;
@@ -133,7 +136,7 @@ export interface DeepWorkTask {
 }
 
 // Deep Work Session Types (new timer-based system)
-export type DeepWorkTargetMinutes = 180 | 270 | 360;
+export type DeepWorkTargetMinutes = 90 | 180 | 270 | 360;
 export type WorkIntervalMinutes = 90 | 60 | 45 | 30;
 
 export interface DeepWorkSession {
@@ -146,7 +149,7 @@ export interface DeepWorkSession {
 
 export interface TimerState {
   isRunning: boolean;
-  startTime: number | null;  // timestamp when timer started
+  startTime: number | null; // timestamp when timer started
   intervalMinutes: WorkIntervalMinutes;
-  elapsedSeconds: number;    // for display purposes
+  elapsedSeconds: number; // for display purposes
 }

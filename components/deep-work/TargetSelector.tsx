@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { Lock, Target } from 'lucide-react';
-import type { DeepWorkTargetMinutes } from '@/types';
+import { Lock, Target } from "lucide-react";
+import type { DeepWorkTargetMinutes } from "@/types";
 
 interface TargetSelectorProps {
   selectedTarget: DeepWorkTargetMinutes | null;
@@ -10,12 +10,17 @@ interface TargetSelectorProps {
 }
 
 const TARGET_OPTIONS: { value: DeepWorkTargetMinutes; label: string }[] = [
-  { value: 180, label: '3h' },
-  { value: 270, label: '4.5h' },
-  { value: 360, label: '6h' },
+  { value: 90, label: "1.5h" },
+  { value: 180, label: "3h" },
+  { value: 270, label: "4.5h" },
+  { value: 360, label: "6h" },
 ];
 
-export function TargetSelector({ selectedTarget, isLocked, onSelect }: TargetSelectorProps) {
+export function TargetSelector({
+  selectedTarget,
+  isLocked,
+  onSelect,
+}: TargetSelectorProps) {
   if (isLocked && selectedTarget) {
     const selected = TARGET_OPTIONS.find((o) => o.value === selectedTarget);
     return (
