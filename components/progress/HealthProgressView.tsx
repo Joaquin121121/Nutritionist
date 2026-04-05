@@ -31,8 +31,8 @@ interface MetricsData {
 const TARGETS = {
   variableMeals: 85,
   fixedMeals: 85,
-  weightlifting: 42,
-  basketball: 28,
+  weightlifting: 57.1,
+  basketball: 57.1,
   cheatMeals: 21.4,
 };
 
