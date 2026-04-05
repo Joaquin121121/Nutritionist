@@ -12,7 +12,8 @@
       "Bash(magick --version)",
       "Bash(npx --yes sharp-cli --version)",
       "Bash(npx sharp-cli:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(xargs wc:*)"
     ]
   }
 }
