@@ -2,11 +2,11 @@ import type { ShotType, ShotData } from '@/types';
 
 export const SHOT_TYPES: ShotType[] = [
   { id: 'midrange_pullup', name: 'Midrange Pullup', attempts: 15, emoji: '⬆️' },
-  { id: 'triple_cs_1', name: 'Triple C&S', attempts: 50, emoji: '3️⃣' },
   { id: 'flotadora', name: 'Flotadora', attempts: 25, emoji: '🌊' },
   { id: 'bandeja_izq', name: 'Bandeja Izquierda', attempts: 25, emoji: '👈' },
   { id: 'bandeja_der', name: 'Bandeja Derecha', attempts: 25, emoji: '👉' },
   { id: 'triples_cs', name: 'Triples C&S', attempts: 50, emoji: '🔥' },
+  { id: 'triple_cs_1', name: 'Triple C&S', attempts: 50, emoji: '3️⃣' },
   { id: 'libres', name: 'Tiros Libres', attempts: 30, emoji: '⭐' },
 ];
 
