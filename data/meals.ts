@@ -2,40 +2,16 @@ import type { VariableMeal, FixedMeal } from "@/types";
 
 export const VARIABLE_MEALS: VariableMeal[] = [
   {
-    id: "chicken_pumpkin",
-    name: "Pollo con pure de calabaza",
-    emoji: "🍗",
-    weeklyServings: 4,
+    id: "balanced_lunch",
+    name: "Almuerzo balanceado",
+    emoji: "🥗",
+    weeklyServings: 7,
   },
   {
-    id: "chicken_pasta_broccoli",
-    name: "Pollo con pasta, brocoli y queso",
-    emoji: "🥦",
-    weeklyServings: 2,
-  },
-  {
-    id: "chicken_pasta_spinach",
-    name: "Pollo con pasta, espinaca y queso",
-    emoji: "🥬",
-    weeklyServings: 2,
-  },
-  {
-    id: "tuna_rice",
-    name: "Arroz con atun y zanahorias",
-    emoji: "🐟",
-    weeklyServings: 2,
-  },
-  {
-    id: "lentil_burgers",
-    name: "Hamburguesas de lentejas con broccoli",
-    emoji: "🍔",
-    weeklyServings: 2,
-  },
-  {
-    id: "gohan_zanahoria",
-    name: "Gohan con zanahoria",
-    emoji: "🍚",
-    weeklyServings: 0,
+    id: "balanced_dinner",
+    name: "Cena balanceada",
+    emoji: "🍽️",
+    weeklyServings: 7,
   },
 ];
 
@@ -48,7 +24,7 @@ export const FIXED_MEALS: FixedMeal[] = [
     name: "Yogur griego con frutillas y cereales",
     emoji: "🍓",
   },
-  { id: "scrambled_eggs", name: "Huevos revueltos con tostada", emoji: "🍳" },
+  { id: "scrambled_eggs", name: "Huevos/Whey", emoji: "🍳" },
 ];
 
 export const DEFAULT_FIXED_MEALS: Record<string, boolean> = {

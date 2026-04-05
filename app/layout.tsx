@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   title: 'Meal Tracker',
   description: 'Track your meals and groceries',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.png',
+    apple: '/icon-192.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

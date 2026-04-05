@@ -7,7 +7,12 @@
       "Bash(npm install:*)",
       "Bash(npm run build)",
       "WebFetch(domain:supabase.com)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Skill(design-consultation)",
+      "Bash(magick --version)",
+      "Bash(npx --yes sharp-cli --version)",
+      "Bash(npx sharp-cli:*)",
+      "Bash(node:*)"
     ]
   }
 }

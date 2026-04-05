@@ -87,7 +87,6 @@ export interface PeriodStats {
 
 // Basketball Types
 export interface ShotData {
-  midrange_cs?: number;
   midrange_pullup?: number;
   triple_cs_1?: number;
   flotadora?: number;

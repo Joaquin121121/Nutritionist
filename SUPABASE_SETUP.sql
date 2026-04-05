@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS basketball_sessions (
   date DATE NOT NULL,
   shots JSONB NOT NULL,
   total_makes INTEGER NOT NULL,
-  total_attempts INTEGER DEFAULT 290,
+  total_attempts INTEGER DEFAULT 220,
   score DECIMAL(5,2),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
