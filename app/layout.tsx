@@ -3,7 +3,7 @@ import { BottomNav } from '@/components/navigation/BottomNav';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Meal Tracker',
+  title: 'Progress Tracker',
   description: 'Track your meals and groceries',
   manifest: '/manifest.json',
   icons: {

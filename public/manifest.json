@@ -1,6 +1,6 @@
 {
-  "name": "Meal Tracker",
-  "short_name": "Meals",
+  "name": "Progress Tracker",
+  "short_name": "Tracker",
   "description": "Track your meals and groceries",
   "start_url": "/track",
   "display": "standalone",
