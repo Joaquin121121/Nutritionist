@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   format,
   startOfWeek,
@@ -18,6 +18,9 @@ import {
   CompoundScore,
 } from '@/components/progress';
 import type { TimeRange } from '@/components/progress';
+import { ContributionMap } from './ContributionMap';
+import type { ContributionMode } from './ContributionMap';
+import { useTrackingEnabled } from '@/lib/tracking';
 import type { DailyLog } from '@/types';
 
 interface MetricsData {
@@ -96,7 +99,7 @@ function calculateMetrics(logs: DailyLog[], totalDays: number): MetricsData {
   const basketballDays = new Set<string>();
   logs.forEach((log) => {
     log.fitness_activities?.forEach((activity) => {
-      if (activity.type === 'basketball_training') {
+      if (activity.type === 'basketball_pickup') {
         basketballDays.add(log.date);
       }
     });
@@ -162,8 +165,10 @@ interface HealthProgressViewProps {
 
 export function HealthProgressView({ logs, timeRange, onTimeRangeChange }: HealthProgressViewProps) {
   const today = useMemo(() => new Date(), []);
+  const [trackingEnabled, setTrackingEnabled] = useTrackingEnabled();
+  const [dataMode, setDataMode] = useState<ContributionMode>('nutrition');
 
-  const { metrics, compoundScore } = useMemo(() => {
+  const { metrics, compoundScore, range } = useMemo(() => {
     const { start, end } = getDateRange(timeRange, today, logs);
     const daysInRange = eachDayOfInterval({ start, end }).length;
 
@@ -180,63 +185,122 @@ export function HealthProgressView({ logs, timeRange, onTimeRangeChange }: Healt
     return {
       metrics: metricsData,
       compoundScore: score,
+      range: { start, end },
     };
   }, [logs, timeRange, today]);
 
   return (
-    <div className="space-y-6">
+    <div className="fade-in">
+      <div className="screen-title">
+        <span className="eyebrow">Tu evolución</span>
+        <h2>Progreso</h2>
+      </div>
+
+      {/* Tracking switch */}
+      <div className="track-row card">
+        <div>
+          <strong>Seguimiento</strong>
+          <span>{trackingEnabled ? 'Registrando tu día' : 'En pausa'}</span>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={trackingEnabled}
+          onClick={() => setTrackingEnabled(!trackingEnabled)}
+          className={`switch${trackingEnabled ? ' on' : ''}`}
+        >
+          <i />
+        </button>
+      </div>
+
       <TimeRangeSelector value={timeRange} onChange={onTimeRangeChange} />
 
       <CompoundScore score={compoundScore} />
 
-      <div className="space-y-3">
-        <MetricCard
-          title="Variable Meals"
-          emoji="🍽️"
-          percentage={metrics.variableMeals.percentage}
-          target={TARGETS.variableMeals}
-          numerator={metrics.variableMeals.count}
-          denominator={metrics.variableMeals.total}
-          unit="meals"
-        />
-        <MetricCard
-          title="Fixed Meals"
-          emoji="🥗"
-          percentage={metrics.fixedMeals.percentage}
-          target={TARGETS.fixedMeals}
-          numerator={metrics.fixedMeals.count}
-          denominator={metrics.fixedMeals.total}
-          unit="meals"
-        />
-        <MetricCard
-          title="Weightlifting"
-          emoji="🏋️"
-          percentage={metrics.weightlifting.percentage}
-          target={TARGETS.weightlifting}
-          numerator={metrics.weightlifting.count}
-          denominator={metrics.weightlifting.total}
-          unit="days"
-        />
-        <MetricCard
-          title="Basketball"
-          emoji="🏀"
-          percentage={metrics.basketball.percentage}
-          target={TARGETS.basketball}
-          numerator={metrics.basketball.count}
-          denominator={metrics.basketball.total}
-          unit="days"
-        />
-        <MetricCard
-          title="Cheat Meals"
-          emoji="🍕"
-          percentage={metrics.cheatMeals.percentage}
-          target={TARGETS.cheatMeals}
-          numerator={metrics.cheatMeals.count}
-          denominator={metrics.cheatMeals.total}
-          unit="meals"
-          isInverse
-        />
+      {/* Data mode selector */}
+      <div className="seg seg-mode">
+        <button
+          type="button"
+          onClick={() => setDataMode('nutrition')}
+          className={dataMode === 'nutrition' ? 'active' : ''}
+        >
+          🥗 Nutrición
+        </button>
+        <button
+          type="button"
+          onClick={() => setDataMode('physical')}
+          className={dataMode === 'physical' ? 'active' : ''}
+        >
+          🏋️ Actividad física
+        </button>
       </div>
+
+      {/* Horizontal metric carousel */}
+      <div className="metric-scroll">
+        {dataMode === 'nutrition' ? (
+          <>
+            <MetricCard
+              title="Comidas variables"
+              emoji="🥗"
+              percentage={metrics.variableMeals.percentage}
+              target={TARGETS.variableMeals}
+              numerator={metrics.variableMeals.count}
+              denominator={metrics.variableMeals.total}
+              unit="meals"
+            />
+            <MetricCard
+              title="Comidas fijas"
+              emoji="🍳"
+              percentage={metrics.fixedMeals.percentage}
+              target={TARGETS.fixedMeals}
+              numerator={metrics.fixedMeals.count}
+              denominator={metrics.fixedMeals.total}
+              unit="meals"
+            />
+            <MetricCard
+              title="Cheat meals"
+              emoji="🍰"
+              percentage={metrics.cheatMeals.percentage}
+              target={TARGETS.cheatMeals}
+              numerator={metrics.cheatMeals.count}
+              denominator={metrics.cheatMeals.total}
+              unit="meals"
+              isInverse
+            />
+          </>
+        ) : (
+          <>
+            <MetricCard
+              title="Pesas"
+              emoji="🏋️"
+              percentage={metrics.weightlifting.percentage}
+              target={TARGETS.weightlifting}
+              numerator={metrics.weightlifting.count}
+              denominator={metrics.weightlifting.total}
+              unit="days"
+            />
+            <MetricCard
+              title="Basquet Pickup"
+              emoji="🏀"
+              percentage={metrics.basketball.percentage}
+              target={TARGETS.basketball}
+              numerator={metrics.basketball.count}
+              denominator={metrics.basketball.total}
+              unit="days"
+            />
+          </>
+        )}
+        <div className="metric-end" />
+      </div>
+
+      {/* GitHub-style contribution map */}
+      <section className="sec">
+        <div className="sec-head">
+          <h3>Constancia</h3>
+          <span className="sec-count">Por día</span>
+        </div>
+        <ContributionMap logs={logs} mode={dataMode} start={range.start} end={range.end} />
+      </section>
     </div>
   );
 }

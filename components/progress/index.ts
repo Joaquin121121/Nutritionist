@@ -6,6 +6,8 @@ export { TimeRangeSelector } from './TimeRangeSelector';
 export { MetricCard } from './MetricCard';
 export { CompoundScore } from './CompoundScore';
 export { SwipeIndicator } from './SwipeIndicator';
+export { ContributionMap } from './ContributionMap';
+export type { ContributionMode } from './ContributionMap';
 export { HealthProgressView } from './HealthProgressView';
 export { BasketballStatsView } from './BasketballStatsView';
 export { SwipeableProgress } from './SwipeableProgress';

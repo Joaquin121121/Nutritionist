@@ -2,15 +2,14 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { format, startOfYear, endOfYear } from 'date-fns';
-import { SwipeableProgress } from '@/components/progress';
+import { HealthProgressView } from '@/components/progress';
 import type { TimeRange } from '@/components/progress';
-import { getDailyLogsRange, getAllBasketballSessions } from '@/lib/database';
-import type { DailyLog, BasketballSession } from '@/types';
+import { getDailyLogsRange } from '@/lib/database';
+import type { DailyLog } from '@/types';
 
 export default function ProgressPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>('week');
   const [logs, setLogs] = useState<DailyLog[]>([]);
-  const [sessions, setSessions] = useState<BasketballSession[]>([]);
   const [loading, setLoading] = useState(true);
 
   const today = useMemo(() => new Date(), []);
@@ -21,13 +20,8 @@ export default function ProgressPage() {
       const yearStart = format(startOfYear(today), 'yyyy-MM-dd');
       const yearEnd = format(endOfYear(today), 'yyyy-MM-dd');
 
-      const [logsData, sessionsData] = await Promise.all([
-        getDailyLogsRange(yearStart, yearEnd),
-        getAllBasketballSessions(),
-      ]);
-
+      const logsData = await getDailyLogsRange(yearStart, yearEnd);
       setLogs(logsData);
-      setSessions(sessionsData);
     } catch (error) {
       console.error('Error loading progress data:', error);
     } finally {
@@ -48,10 +42,9 @@ export default function ProgressPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto py-6">
-      <SwipeableProgress
+    <div className="app-screen">
+      <HealthProgressView
         logs={logs}
-        sessions={sessions}
         timeRange={timeRange}
         onTimeRangeChange={setTimeRange}
       />

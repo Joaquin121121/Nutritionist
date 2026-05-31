@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { Brain } from 'lucide-react';
 import {
   TargetSelector,
@@ -256,31 +257,25 @@ export default function DeepWorkPage() {
 
   if (loading) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-6">
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-pulse text-neutral-500">Cargando...</div>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-pulse text-neutral-500">Cargando...</div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+    <div className="app-screen fade-in">
       {/* Audio element */}
       <audio ref={audioRef} src="/brd.mp3" preload="auto" />
 
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-          <Brain className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+      <div className="focus-head">
+        <div className="focus-brain">
+          <Brain width={22} height={22} />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-neutral-800 dark:text-neutral-200">
-            Deep Work
-          </h1>
-          <p className="text-sm text-neutral-500">
-            {format(new Date(), 'EEEE, d MMMM')}
-          </p>
+          <span className="eyebrow">{format(new Date(), "d MMM yyyy", { locale: es })}</span>
+          <h2>Deep Work</h2>
         </div>
       </div>
 

@@ -5,11 +5,24 @@ import {
   Headphones,
   Play,
   Pause,
-  SkipBack,
-  SkipForward,
-  ArrowLeft,
+  RotateCcw,
+  RotateCw,
+  ChevronLeft,
   Loader2,
 } from 'lucide-react';
+
+// Deterministic editorial gradient covers (terracotta, blue, green, gold).
+const COVER_GRADIENTS: [string, string][] = [
+  ['#c15f3c', '#e0894e'],
+  ['#3e6f8e', '#6fa0be'],
+  ['#3e9d6b', '#7ac79b'],
+  ['#a8843e', '#d8b86a'],
+];
+
+function coverStyle(index: number) {
+  const [a, b] = COVER_GRADIENTS[index % COVER_GRADIENTS.length];
+  return { background: `linear-gradient(150deg, ${a}, ${b})` };
+}
 
 interface Audiobook {
   title: string;
@@ -257,79 +270,63 @@ export default function AudiobookPage() {
   // Player view
   if (selected) {
     const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+    const selectedIndex = Math.max(
+      0,
+      audiobooks.findIndex((b) => b.filename === selected.filename)
+    );
+    const remaining = duration > 0 ? duration - currentTime : 0;
 
     return (
-      <div className="max-w-lg mx-auto px-4 py-6 flex flex-col min-h-[calc(100vh-5rem)]">
+      <div className="app-screen player-pad fade-in">
         {/* Back button */}
-        <button
-          onClick={handleBack}
-          className="flex items-center gap-2 text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 mb-8 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span className="text-sm font-medium">Audiolibros</span>
+        <button onClick={handleBack} className="linkbtn back-link">
+          <ChevronLeft width={16} height={16} /> Audiolibros
         </button>
 
+        {/* Cover */}
+        <div className="player-cover" style={coverStyle(selectedIndex)}>
+          <Headphones width={64} height={64} style={{ color: '#fff' }} />
+        </div>
+
         {/* Book info */}
-        <div className="flex-1 flex flex-col items-center justify-center">
-          <div className="w-32 h-32 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center mb-6 shadow-lg">
-            <Headphones className="w-16 h-16 text-white" />
-          </div>
-          <h2 className="text-xl font-bold text-neutral-800 dark:text-neutral-200 text-center mb-1">
-            {selected.title}
-          </h2>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-8">
-            {selected.author}
-          </p>
+        <div className="player-info">
+          <h2>{selected.title}</h2>
+          <p>{selected.author}</p>
+        </div>
 
-          {/* Progress bar */}
-          <div className="w-full mb-3">
-            <div
-              className="w-full h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden cursor-pointer"
-              onClick={handleSeek}
-            >
-              <div
-                className="h-full bg-purple-500 transition-all duration-300 rounded-full"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+        {/* Seek bar */}
+        <div className="player-seek">
+          <div className="bar seek-bar" onClick={handleSeek}>
+            <i style={{ width: `${progress}%` }} />
+            <span className="seek-knob" style={{ left: `${progress}%` }} />
           </div>
-
-          {/* Time display */}
-          <div className="w-full flex justify-between text-xs text-neutral-500 dark:text-neutral-400 mb-10">
+          <div className="seek-times">
             <span>{formatTime(currentTime)}</span>
-            <span>{duration > 0 ? formatTime(duration) : '--:--'}</span>
+            <span>{duration > 0 ? `-${formatTime(remaining)}` : '--:--'}</span>
           </div>
+        </div>
 
-          {/* Controls */}
-          <div className="flex items-center justify-center gap-6">
-            <button
-              onClick={() => skip(-10)}
-              className="w-12 h-12 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
-            >
-              <SkipBack className="w-5 h-5 text-neutral-700 dark:text-neutral-300" />
-            </button>
+        {/* Controls */}
+        <div className="player-ctrls">
+          <button className="round-btn" onClick={() => skip(-10)} aria-label="Retroceder 10s">
+            <RotateCcw width={24} height={24} strokeWidth={1.8} />
+            <b>10</b>
+          </button>
 
-            <button
-              onClick={togglePlay}
-              disabled={audioLoading}
-              className="w-16 h-16 rounded-full bg-purple-500 hover:bg-purple-600 flex items-center justify-center transition-colors shadow-lg disabled:opacity-50"
-            >
-              {audioLoading ? (
-                <Loader2 className="w-7 h-7 text-white animate-spin" />
-              ) : isPlaying ? (
-                <Pause className="w-7 h-7 text-white" />
-              ) : (
-                <Play className="w-7 h-7 text-white ml-1" />
-              )}
-            </button>
+          <button className="round-btn big" onClick={togglePlay} disabled={audioLoading}>
+            {audioLoading ? (
+              <Loader2 width={34} height={34} className="animate-spin" />
+            ) : isPlaying ? (
+              <Pause width={34} height={34} fill="currentColor" />
+            ) : (
+              <Play width={34} height={34} fill="currentColor" style={{ marginLeft: 3 }} />
+            )}
+          </button>
 
-            <button
-              onClick={() => skip(10)}
-              className="w-12 h-12 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
-            >
-              <SkipForward className="w-5 h-5 text-neutral-700 dark:text-neutral-300" />
-            </button>
-          </div>
+          <button className="round-btn" onClick={() => skip(10)} aria-label="Adelantar 10s">
+            <RotateCw width={24} height={24} strokeWidth={1.8} />
+            <b>10</b>
+          </button>
         </div>
       </div>
     );
@@ -337,55 +334,41 @@ export default function AudiobookPage() {
 
   // List view
   return (
-    <div className="max-w-lg mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold text-neutral-800 dark:text-neutral-200 mb-6">
-        Audiolibros
-      </h1>
+    <div className="app-screen fade-in">
+      <div className="screen-title">
+        <span className="eyebrow">Tu biblioteca</span>
+        <h2>Audiolibros</h2>
+      </div>
 
       {audiobooks.length === 0 ? (
-        <div className="text-center py-12 text-neutral-500 dark:text-neutral-400">
+        <div className="text-center py-12 text-neutral-500">
           <Headphones className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p>No hay audiolibros disponibles.</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {audiobooks.map((book) => {
+        <div className="book-list">
+          {audiobooks.map((book, index) => {
             const saved = getSavedProgress(book.filename);
-            const pct = saved && saved.duration > 0
-              ? Math.round((saved.currentTime / saved.duration) * 100)
-              : 0;
+            const pct =
+              saved && saved.duration > 0
+                ? Math.round((saved.currentTime / saved.duration) * 100)
+                : 0;
 
             return (
-              <button
-                key={book.filename}
-                onClick={() => handleSelect(book)}
-                className="w-full text-left p-4 rounded-xl bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover:border-purple-300 dark:hover:border-purple-600 transition-colors"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Headphones className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-neutral-800 dark:text-neutral-200 truncate">
-                      {book.title}
-                    </h3>
-                    <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                      {book.author} &middot; {formatSize(book.sizeBytes)}
-                    </p>
-                    {/* Progress bar */}
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-purple-500 rounded-full transition-all"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <span className="text-[10px] text-neutral-400 dark:text-neutral-500 w-8 text-right">
-                        {pct}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
+              <button key={book.filename} onClick={() => handleSelect(book)} className="book-card">
+                <span className="book-cover" style={coverStyle(index)}>
+                  <Headphones width={22} height={22} style={{ color: '#fff' }} />
+                </span>
+                <span className="book-meta">
+                  <span className="book-title">{book.title}</span>
+                  <span className="book-author">
+                    {book.author} · {formatSize(book.sizeBytes)}
+                  </span>
+                  <span className="book-bar">
+                    <i style={{ width: `${pct}%` }} />
+                  </span>
+                </span>
+                <span className="book-pct">{pct}%</span>
               </button>
             );
           })}

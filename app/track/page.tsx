@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { format, startOfWeek, endOfWeek } from 'date-fns';
-import { MessageSquarePlus, Trash2 } from 'lucide-react';
+import { Plus, Check, MessageSquare } from 'lucide-react';
 import { DayNavigator, MealCard, CheatMealInput, FitnessSection } from '@/components/track';
-import { Checkbox } from '@/components/ui';
 import { VARIABLE_MEALS, FIXED_MEALS, DEFAULT_FIXED_MEALS } from '@/data/meals';
 import { getDailyLog, getDailyLogsRange, upsertDailyLog } from '@/lib/database';
+import { useTrackingEnabled } from '@/lib/tracking';
 import type { DailyLog, CheatMeal, FitnessActivity, FitnessActivityType } from '@/types';
 
 const MAX_VARIABLE_MEALS = 2;
@@ -22,6 +22,7 @@ export default function TrackPage() {
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentDraft, setCommentDraft] = useState('');
   const [weeklyServings, setWeeklyServings] = useState<Record<string, number>>({});
+  const [trackingEnabled] = useTrackingEnabled();
 
   const dateString = format(selectedDate, 'yyyy-MM-dd');
   const commentKey = `track-comment-${dateString}`;
@@ -81,14 +82,17 @@ export default function TrackPage() {
     if (commentDraft.trim()) {
       localStorage.setItem(commentKey, commentDraft.trim());
       setComment(commentDraft.trim());
+    } else {
+      localStorage.removeItem(commentKey);
+      setComment('');
     }
     setShowCommentInput(false);
     setCommentDraft('');
   };
 
-  const handleDeleteComment = () => {
-    localStorage.removeItem(commentKey);
-    setComment('');
+  const openCommentEditor = () => {
+    setCommentDraft(comment);
+    setShowCommentInput(true);
   };
 
   const saveLog = async (updates: Partial<Pick<DailyLog, 'variable_meals' | 'fixed_meals' | 'cheat_meals' | 'fitness_activities'>>) => {
@@ -100,13 +104,12 @@ export default function TrackPage() {
   };
 
   const handleVariableMealToggle = (mealId: string) => {
+    if (!trackingEnabled) return;
     let newMeals: string[];
 
     if (variableMeals.length < MAX_VARIABLE_MEALS) {
-      // Under max: always add (allows duplicates)
       newMeals = [...variableMeals, mealId];
     } else {
-      // At max: remove one instance of this meal if it exists
       const lastIndex = variableMeals.lastIndexOf(mealId);
       if (lastIndex !== -1) {
         newMeals = [...variableMeals];
@@ -121,24 +124,28 @@ export default function TrackPage() {
   };
 
   const handleFixedMealToggle = (mealId: string) => {
+    if (!trackingEnabled) return;
     const newMeals = { ...fixedMeals, [mealId]: !fixedMeals[mealId] };
     setFixedMeals(newMeals);
     saveLog({ fixed_meals: newMeals });
   };
 
   const handleAddCheatMeal = (meal: CheatMeal) => {
+    if (!trackingEnabled) return;
     const newMeals = [...cheatMeals, meal];
     setCheatMeals(newMeals);
     saveLog({ cheat_meals: newMeals });
   };
 
   const handleRemoveCheatMeal = (index: number) => {
+    if (!trackingEnabled) return;
     const newMeals = cheatMeals.filter((_, i) => i !== index);
     setCheatMeals(newMeals);
     saveLog({ cheat_meals: newMeals });
   };
 
   const handleFitnessToggle = (type: FitnessActivityType) => {
+    if (!trackingEnabled) return;
     const exists = fitnessActivities.some((a) => a.type === type);
     let newActivities: FitnessActivity[];
 
@@ -167,183 +174,177 @@ export default function TrackPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4">
+    <div className="app-screen fade-in">
       <DayNavigator selectedDate={selectedDate} onDateChange={setSelectedDate} />
 
+      {/* Tracking paused banner */}
+      {!trackingEnabled && (
+        <div className="banner-amber fade-in">
+          <span className="ba-dot" />
+          <div>
+            <strong>Seguimiento pausado</strong>
+            <p>Reanúdalo desde la pestaña Progreso para volver a registrar tu día.</p>
+          </div>
+        </div>
+      )}
+
       {/* Comment Section */}
-      <div className="mb-6">
-        {comment ? (
-          <div className="p-3 rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700">
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-sm text-neutral-700 dark:text-neutral-300 flex-1">
-                {comment}
-              </p>
-              <button
-                onClick={handleDeleteComment}
-                className="p-1 text-neutral-400 hover:text-danger-500 transition-colors"
-                aria-label="Eliminar comentario"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+      {showCommentInput ? (
+        <div className="note-box fade-in">
+          <textarea
+            value={commentDraft}
+            onChange={(e) => setCommentDraft(e.target.value)}
+            placeholder="Cómo te sentiste hoy, energía, ánimo…"
+            rows={3}
+            autoFocus
+          />
+          <div className="note-actions">
+            <button
+              className="pill pill-ghost"
+              onClick={() => {
+                setShowCommentInput(false);
+                setCommentDraft('');
+              }}
+            >
+              Cancelar
+            </button>
+            <button className="pill pill-accent" onClick={handleSaveComment}>
+              Guardar
+            </button>
           </div>
-        ) : showCommentInput ? (
-          <div className="space-y-2">
-            <textarea
-              value={commentDraft}
-              onChange={(e) => setCommentDraft(e.target.value)}
-              placeholder="Escribe un comentario sobre el dia..."
-              className="w-full p-3 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
-              rows={2}
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={handleSaveComment}
-                disabled={!commentDraft.trim()}
-                className="px-3 py-1.5 text-sm font-medium rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Guardar
-              </button>
-              <button
-                onClick={() => {
-                  setShowCommentInput(false);
-                  setCommentDraft('');
-                }}
-                className="px-3 py-1.5 text-sm font-medium rounded-lg text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setShowCommentInput(true)}
-            className="flex items-center gap-2 text-sm text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
-          >
-            <MessageSquarePlus className="w-4 h-4" />
-            Agregar comentario
+        </div>
+      ) : comment ? (
+        <div className="note-saved">
+          <MessageSquare width={15} height={15} style={{ color: 'var(--muted)', flex: '0 0 auto', marginTop: 1 }} />
+          <p>{comment}</p>
+          <button className="note-edit" disabled={!trackingEnabled} onClick={openCommentEditor}>
+            Editar
           </button>
-        )}
-      </div>
+        </div>
+      ) : (
+        <button className="linkbtn comment-link" disabled={!trackingEnabled} onClick={openCommentEditor}>
+          <Plus width={15} height={15} /> Agregar comentario
+        </button>
+      )}
 
-      {/* Fitness Section */}
-      <section className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-neutral-800 dark:text-neutral-200">
-            Actividad fisica
-          </h2>
-          {fitnessActivities.length > 0 && (
-            <span className="text-sm font-medium text-accent-600 dark:text-accent-400">
-              {fitnessActivities.length} actividad{fitnessActivities.length > 1 ? 'es' : ''}
+      {/* Loggable sections — disabled while tracking is paused */}
+      <div className="log-zone" data-dim={!trackingEnabled}>
+        {/* Fitness Section */}
+        <section className="sec">
+          <div className="sec-head">
+            <h3>Actividad física</h3>
+            {fitnessActivities.length > 0 && (
+              <span className="sec-count">
+                <b>{fitnessActivities.length}</b> actividad{fitnessActivities.length > 1 ? 'es' : ''}
+              </span>
+            )}
+          </div>
+          <FitnessSection activities={fitnessActivities} onToggle={handleFitnessToggle} />
+        </section>
+
+        {/* Variable Meals Section */}
+        <section className="sec">
+          <div className="sec-head">
+            <h3>Comidas variables</h3>
+            <span className="sec-count">
+              <b>{variableMeals.length}</b>/{MAX_VARIABLE_MEALS}
             </span>
-          )}
-        </div>
-        <FitnessSection
-          activities={fitnessActivities}
-          onToggle={handleFitnessToggle}
-        />
-      </section>
+          </div>
+          <div className="stack">
+            {VARIABLE_MEALS.map((meal) => {
+              const selectionCount = variableMeals.filter((id) => id === meal.id).length;
+              const isSelected = selectionCount > 0;
+              const isDisabled = !isSelected && variableMeals.length >= MAX_VARIABLE_MEALS;
 
-      {/* Variable Meals Section */}
-      <section className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-neutral-800 dark:text-neutral-200">
-            Comidas variables
-          </h2>
-          <span className="text-sm font-medium text-primary-600 dark:text-primary-400">
-            {variableMeals.length}/{MAX_VARIABLE_MEALS}
-          </span>
-        </div>
-        <div className="space-y-3">
-          {VARIABLE_MEALS.map((meal) => {
-            const selectionCount = variableMeals.filter(id => id === meal.id).length;
-            const isSelected = selectionCount > 0;
-            const isDisabled = !isSelected && variableMeals.length >= MAX_VARIABLE_MEALS;
+              return (
+                <MealCard
+                  key={meal.id}
+                  id={meal.id}
+                  name={meal.name}
+                  emoji={meal.emoji}
+                  isSelected={isSelected}
+                  onToggle={() => handleVariableMealToggle(meal.id)}
+                  disabled={isDisabled}
+                  selectionCount={selectionCount}
+                  weeklyCount={weeklyServings[meal.id] || 0}
+                  weeklyTarget={meal.weeklyServings}
+                />
+              );
+            })}
+          </div>
+        </section>
 
-            return (
-              <MealCard
-                key={meal.id}
-                id={meal.id}
-                name={meal.name}
-                emoji={meal.emoji}
-                isSelected={isSelected}
-                onToggle={() => handleVariableMealToggle(meal.id)}
-                disabled={isDisabled}
-                selectionCount={selectionCount}
-                weeklyCount={weeklyServings[meal.id] || 0}
-                weeklyTarget={meal.weeklyServings}
-              />
-            );
-          })}
-        </div>
-      </section>
+        {/* Fixed Meals Section */}
+        <section className="sec">
+          <div className="sec-head">
+            <h3>Comidas fijas</h3>
+            <span className="sec-count">
+              <b>{fixedMealsCompleted}</b>/{totalFixedMeals}
+            </span>
+          </div>
+          <div className="card list-card">
+            {FIXED_MEALS.map((meal, i) => {
+              const on = fixedMeals[meal.id] || false;
+              return (
+                <button
+                  key={meal.id}
+                  className="ck-row"
+                  data-last={i === FIXED_MEALS.length - 1}
+                  onClick={() => handleFixedMealToggle(meal.id)}
+                >
+                  <span className="ck-emoji">{meal.emoji}</span>
+                  <span className="ck-label" data-on={on}>{meal.name}</span>
+                  <span className="ck-box" data-on={on}>
+                    {on && <Check width={13} height={13} strokeWidth={2.8} />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
-      {/* Fixed Meals Section */}
-      <section className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-neutral-800 dark:text-neutral-200">
-            Comidas fijas
-          </h2>
-          <span className="text-sm font-medium text-primary-600 dark:text-primary-400">
-            {fixedMealsCompleted}/{totalFixedMeals}
-          </span>
-        </div>
-        <div className="bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 space-y-4">
-          {FIXED_MEALS.map((meal) => (
-            <div key={meal.id} className="flex items-center gap-3">
-              <span className="text-2xl">{meal.emoji}</span>
-              <Checkbox
-                checked={fixedMeals[meal.id] || false}
-                onChange={() => handleFixedMealToggle(meal.id)}
-                label={meal.name}
-                strikethrough
-                className="flex-1"
-              />
+        {/* Cheat Meals Section */}
+        <section className="sec">
+          <div className="sec-head">
+            <h3>Cheat meals</h3>
+            <span className="sec-count">
+              <b>{cheatMeals.length}</b>
+            </span>
+          </div>
+          <CheatMealInput
+            cheatMeals={cheatMeals}
+            onAdd={handleAddCheatMeal}
+            onRemove={handleRemoveCheatMeal}
+          />
+        </section>
+
+        {/* Daily Summary */}
+        <section className="sec">
+          <div className="summary-card">
+            <div className="sum-head">
+              <span className="eyebrow">Resumen del día</span>
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Cheat Meals Section */}
-      <section className="mb-8">
-        <h2 className="text-lg font-semibold text-neutral-800 dark:text-neutral-200 mb-3">
-          Cheat meals
-        </h2>
-        <CheatMealInput
-          cheatMeals={cheatMeals}
-          onAdd={handleAddCheatMeal}
-          onRemove={handleRemoveCheatMeal}
-        />
-      </section>
-
-      {/* Daily Summary */}
-      <section className="mb-8 p-4 rounded-xl bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/20 border border-primary-200 dark:border-primary-800">
-        <h3 className="font-semibold text-primary-800 dark:text-primary-200 mb-2">
-          Resumen del dia
-        </h3>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-primary-700 dark:text-primary-300">
-          {fitnessActivities.length > 0 && (
-            <>
-              <span className="text-accent-600 dark:text-accent-400">
-                {fitnessActivities.length} fitness
-              </span>
-              <span>•</span>
-            </>
-          )}
-          <span>{variableMeals.length} comidas variables</span>
-          <span>•</span>
-          <span>{fixedMealsCompleted}/{totalFixedMeals} fijas</span>
-          {cheatMeals.length > 0 && (
-            <>
-              <span>•</span>
-              <span className="text-danger-600 dark:text-danger-400">
-                {cheatMeals.length} cheat{cheatMeals.length > 1 ? 's' : ''}
-              </span>
-            </>
-          )}
-        </div>
-      </section>
+            <div className="sum-grid">
+              <div>
+                <b>{fitnessActivities.length}</b>
+                <span>Fitness</span>
+              </div>
+              <div>
+                <b>{variableMeals.length}<i>/{MAX_VARIABLE_MEALS}</i></b>
+                <span>Variables</span>
+              </div>
+              <div>
+                <b>{fixedMealsCompleted}<i>/{totalFixedMeals}</i></b>
+                <span>Fijas</span>
+              </div>
+              <div>
+                <b>{cheatMeals.length}</b>
+                <span>Cheats</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
