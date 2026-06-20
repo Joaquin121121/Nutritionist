@@ -33,18 +33,29 @@ CREATE TABLE IF NOT EXISTS streaks (
   last_clean_day DATE
 );
 
--- 4. Create basketball_sessions table
+-- 4. Create basketball_sessions table (voice-circuit sessions)
 CREATE TABLE IF NOT EXISTS basketball_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   date DATE NOT NULL,
-  shots JSONB NOT NULL,
+  shots JSONB NOT NULL DEFAULT '{}'::jsonb,   -- legacy column, unused by circuits
+  circuits JSONB,                              -- [{ id, name, makes, attempts, spots:[{makes,attempts}] }]
   total_makes INTEGER NOT NULL,
-  total_attempts INTEGER DEFAULT 220,
+  total_attempts INTEGER DEFAULT 0,
   score DECIMAL(5,2),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_basketball_sessions_date ON basketball_sessions(date);
+
+-- Migration for existing databases: add circuits column + relax legacy shots.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_name = 'basketball_sessions' AND column_name = 'circuits') THEN
+    ALTER TABLE basketball_sessions ADD COLUMN circuits JSONB;
+    ALTER TABLE basketball_sessions ALTER COLUMN shots SET DEFAULT '{}'::jsonb;
+  END IF;
+END $$;
 
 -- 5. Disable Row Level Security (single-user app)
 ALTER TABLE daily_logs DISABLE ROW LEVEL SECURITY;

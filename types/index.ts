@@ -85,42 +85,35 @@ export interface PeriodStats {
   percentage: number;
 }
 
-// Basketball Types
-export interface ShotData {
-  midrange_pullup?: number;
-  triple_cs_1?: number;
-  flotadora?: number;
-  bandeja_izq?: number;
-  bandeja_der?: number;
-  triples_cs?: number;
-  libres?: number;
+// Basketball Voice-Circuit Types
+export interface Circuit {
+  id: string;
+  name: string;
+  emoji: string;
+  spots: number;
+  shotsPerSpot: number;
 }
+
+/** Per-circuit result captured during a live session. */
+export interface CircuitResult {
+  id: string;
+  name: string;
+  makes: number;
+  attempts: number;
+  /** makes/attempts per spot, in order */
+  spots: { makes: number; attempts: number }[];
+}
+
+export type ShotOutcome = 'make' | 'miss';
 
 export interface BasketballSession {
   id: string;
   date: string;
-  shots: ShotData;
+  circuits: CircuitResult[];
   total_makes: number;
   total_attempts: number;
   score: number;
   created_at: string;
-}
-
-export interface ShotType {
-  id: keyof ShotData;
-  name: string;
-  attempts: number;
-  emoji: string;
-}
-
-export interface ShotStats {
-  id: keyof ShotData;
-  name: string;
-  totalMakes: number;
-  totalAttempts: number;
-  percentage: number;
-  sessionsCount: number;
-  averagePerSession: number;
 }
 
 // Deep Work Types (legacy - kept for compatibility)

@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Utensils, TrendingUp, Brain, Headphones } from 'lucide-react';
+import { Utensils, TrendingUp, Brain, Headphones, Target } from 'lucide-react';
 
 const tabs = [
   { href: '/track', label: 'Track', icon: Utensils },
   { href: '/progress', label: 'Progress', icon: TrendingUp },
+  { href: '/basketball', label: 'Hoops', icon: Target },
   { href: '/deep-work', label: 'Focus', icon: Brain },
   { href: '/audiobook', label: 'Audio', icon: Headphones },
 ];

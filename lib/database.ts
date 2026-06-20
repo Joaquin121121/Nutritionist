@@ -1,7 +1,6 @@
 import { getSupabase } from './supabase';
-import type { DailyLog, GroceryItemDB, StreakData, CheatMeal, FitnessActivity, BasketballSession, ShotData, DeepWorkTask, DeepWorkSession, DeepWorkTargetMinutes } from '@/types';
+import type { DailyLog, GroceryItemDB, StreakData, CheatMeal, FitnessActivity, BasketballSession, CircuitResult, DeepWorkTask, DeepWorkSession, DeepWorkTargetMinutes } from '@/types';
 import { DEFAULT_FIXED_MEALS } from '@/data/meals';
-import { calculateSessionScore } from '@/data/shots';
 
 // ============ Daily Logs ============
 
@@ -258,20 +257,35 @@ export async function getAllBasketballSessions(): Promise<BasketballSession[]> {
   return data ?? [];
 }
 
+export function circuitsTotals(circuits: CircuitResult[]): {
+  totalMakes: number;
+  totalAttempts: number;
+  score: number;
+} {
+  let totalMakes = 0;
+  let totalAttempts = 0;
+  for (const c of circuits) {
+    totalMakes += c.makes;
+    totalAttempts += c.attempts;
+  }
+  const score = totalAttempts > 0 ? (totalMakes / totalAttempts) * 100 : 0;
+  return { totalMakes, totalAttempts, score };
+}
+
 export async function saveBasketballSession(
   date: string,
-  shots: ShotData
+  circuits: CircuitResult[]
 ): Promise<BasketballSession | null> {
   const supabase = getSupabase();
   if (!supabase) return null;
 
-  const { totalMakes, totalAttempts, score } = calculateSessionScore(shots);
+  const { totalMakes, totalAttempts, score } = circuitsTotals(circuits);
 
   const { data, error } = await supabase
     .from('basketball_sessions')
     .insert({
       date,
-      shots,
+      circuits,
       total_makes: totalMakes,
       total_attempts: totalAttempts,
       score: Math.round(score * 100) / 100,

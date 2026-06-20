@@ -36,3 +36,11 @@ next-env.d.ts
 # IDE
 .idea/
 .vscode/
+
+# Voice feature: raw model zip + dev test audio (served tar.gz model is committed)
+/public/models/*.zip
+/public/test/
+/test/fixtures/
+*.b64.json
+.playwright-mcp/
+_mp_extract/

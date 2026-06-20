@@ -1,2 +1,1 @@
-export { ShotSlider } from './ShotSlider';
-export { SessionScore } from './SessionScore';
+export { VoiceSessionView } from './VoiceSessionView';
