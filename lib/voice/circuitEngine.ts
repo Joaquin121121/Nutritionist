@@ -28,7 +28,8 @@ export type SessionEvent =
       pct: number;
       nextCircuit: Circuit | null;
     }
-  | { type: 'session-complete'; totalMakes: number; totalAttempts: number; pct: number };
+  | { type: 'session-complete'; totalMakes: number; totalAttempts: number; pct: number }
+  | { type: 'time-expired'; totalMakes: number; totalAttempts: number; pct: number };
 
 export interface SessionSnapshot {
   status: 'active' | 'finished';
@@ -84,6 +85,25 @@ export class CircuitSession {
       attempts += r.attempts;
     }
     return { makes, attempts, pct: attempts ? (makes / attempts) * 100 : 0 };
+  }
+
+  /**
+   * End the session early (e.g. the workout timer ran out). Marks it finished
+   * and returns a single `time-expired` event carrying the totals-so-far. A
+   * no-op (empty events) if the session already finished.
+   */
+  forceFinish(): SessionEvent[] {
+    if (this.finished) return [];
+    this.finished = true;
+    const t = this.totals();
+    return [
+      {
+        type: 'time-expired',
+        totalMakes: t.makes,
+        totalAttempts: t.attempts,
+        pct: t.pct,
+      },
+    ];
   }
 
   /** Record one outcome, returning the ordered events it triggered. */

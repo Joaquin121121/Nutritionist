@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
-import { Mic, MicOff, Check, Trophy, RotateCcw, Volume2 } from 'lucide-react';
+import { Mic, MicOff, Check, Trophy, RotateCcw, Volume2, Timer } from 'lucide-react';
 import { CIRCUITS } from '@/data/circuits';
 import { useVoiceSession } from '@/lib/voice/useVoiceSession';
 import { circuitsTotals, saveBasketballSession, getDailyLog, upsertDailyLog } from '@/lib/database';
@@ -14,9 +14,26 @@ function pctColor(pct: number): string {
   return 'text-danger-600';
 }
 
+function fmtTime(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 export function VoiceSessionView() {
-  const { status, snapshot, partial, feedback, lastShot, error, start, stop, reset, simulateFromClip } =
-    useVoiceSession();
+  const {
+    status,
+    snapshot,
+    partial,
+    feedback,
+    lastShot,
+    error,
+    remainingSec,
+    start,
+    stop,
+    reset,
+    simulateFromClip,
+  } = useVoiceSession();
   const [saved, setSaved] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
   const savedRef = useRef(false);
   const [showTest, setShowTest] = useState(false);
@@ -89,6 +106,29 @@ export function VoiceSessionView() {
           <h1 className="text-xl font-bold text-neutral-800 leading-tight">Entrenamiento por Voz</h1>
         </div>
       </div>
+
+      {/* Workout countdown (25-minute cap) */}
+      {(status === 'listening' || status === 'paused') && (
+        <div
+          className={`card p-3 mb-5 flex items-center justify-between ${
+            remainingSec <= 60 ? 'bg-danger-50 border-danger-200' : ''
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Timer
+              className={`w-4 h-4 ${remainingSec <= 60 ? 'text-danger-600' : 'text-neutral-500'}`}
+            />
+            <span className="text-sm text-neutral-600">Tiempo restante</span>
+          </div>
+          <span
+            className={`text-lg font-bold tabular-nums ${
+              remainingSec <= 60 ? 'text-danger-600' : 'text-neutral-800'
+            }`}
+          >
+            {fmtTime(remainingSec)}
+          </span>
+        </div>
+      )}
 
       {/* Last-shot flash + mic control */}
       <div className="card p-5 mb-5 flex flex-col items-center text-center">

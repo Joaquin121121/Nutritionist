@@ -69,6 +69,10 @@ export function phraseForEvent(ev: SessionEvent): string | null {
       return `Session finished! ${ev.totalMakes} of ${ev.totalAttempts} shots, ${pct(
         ev.pct
       )} percent. Great work.`;
+    case 'time-expired':
+      return `Time's up! Twenty-five minute workout complete. ${ev.totalMakes} of ${
+        ev.totalAttempts
+      } shots, ${pct(ev.pct)} percent. Great work.`;
     default:
       return null;
   }

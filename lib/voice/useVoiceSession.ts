@@ -7,6 +7,12 @@ import { CircuitSession, type SessionEvent, type SessionSnapshot } from './circu
 import { VoiceRecognizer, recognizePcm } from './recognizer';
 import { Speaker, phraseForEvent, startCirclePhrase } from './speech';
 
+/** Hard cap on a single workout: 25 minutes of active (listening) time. */
+export const SESSION_LIMIT_SEC = 25 * 60;
+const SESSION_LIMIT_MS = SESSION_LIMIT_SEC * 1000;
+/** Speak a heads-up when this much time is left. */
+const WARN_AT_MS = SESSION_LIMIT_MS - 60 * 1000;
+
 export type VoiceStatus =
   | 'idle'
   | 'loading'
@@ -27,6 +33,10 @@ export interface UseVoiceSession {
   feedback: string;
   lastShot: LastShot | null;
   error: string | null;
+  /** Seconds of active workout elapsed (counts up while listening). */
+  elapsedSec: number;
+  /** Seconds left until the 25-minute cap auto-ends the session. */
+  remainingSec: number;
   start: () => Promise<void>;
   stop: () => Promise<void>;
   reset: () => void;
@@ -44,12 +54,20 @@ export function useVoiceSession(): UseVoiceSession {
   const recognizerRef = useRef<VoiceRecognizer | null>(null);
   const shotIdRef = useRef(0);
 
+  // Workout timer: committed elapsed ms across listening segments, plus the
+  // start of the current segment (null while not listening), plus a one-shot
+  // guard for the "1 minute left" cue.
+  const elapsedMsRef = useRef(0);
+  const segmentStartRef = useRef<number | null>(null);
+  const warnedRef = useRef(false);
+
   const [status, setStatus] = useState<VoiceStatus>('idle');
   const [snapshot, setSnapshot] = useState<SessionSnapshot>(freshSnapshot);
   const [partial, setPartial] = useState('');
   const [feedback, setFeedback] = useState('');
   const [lastShot, setLastShot] = useState<LastShot | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [elapsedSec, setElapsedSec] = useState(0);
 
   // Preload the model + speech voices once mounted.
   useEffect(() => {
@@ -73,9 +91,10 @@ export function useVoiceSession(): UseVoiceSession {
         setFeedback(phrase);
         speaker?.say(phrase);
       }
-      if (ev.type === 'session-complete') {
+      if (ev.type === 'session-complete' || ev.type === 'time-expired') {
         setStatus('finished');
         recognizerRef.current?.stop();
+        recognizerRef.current = null;
       }
     }
   }, []);
@@ -91,10 +110,56 @@ export function useVoiceSession(): UseVoiceSession {
     [handleEvents]
   );
 
+  // One timer tick: accumulate active time, warn near the end, and auto-finish
+  // the workout once the 25-minute cap is reached.
+  const tick = useCallback(() => {
+    const now = Date.now();
+    const total =
+      elapsedMsRef.current + (segmentStartRef.current != null ? now - segmentStartRef.current : 0);
+    setElapsedSec(Math.min(SESSION_LIMIT_SEC, Math.floor(total / 1000)));
+
+    if (!warnedRef.current && total >= WARN_AT_MS && total < SESSION_LIMIT_MS) {
+      warnedRef.current = true;
+      const phrase = 'One minute remaining.';
+      setFeedback(phrase);
+      speakerRef.current?.say(phrase);
+    }
+
+    if (total >= SESSION_LIMIT_MS) {
+      const session = sessionRef.current;
+      if (session && !session.isFinished) {
+        const events = session.forceFinish();
+        setSnapshot(session.snapshot());
+        handleEvents(events); // speaks the time-up cue, stops the mic, marks finished
+      }
+    }
+  }, [handleEvents]);
+
+  // Run the timer only while actively listening; pausing the mic pauses the
+  // workout clock. The cleanup commits the elapsed segment so resuming continues
+  // from where it left off.
+  useEffect(() => {
+    if (status !== 'listening') return;
+    segmentStartRef.current = Date.now();
+    const id = window.setInterval(tick, 1000);
+    return () => {
+      window.clearInterval(id);
+      if (segmentStartRef.current != null) {
+        elapsedMsRef.current += Date.now() - segmentStartRef.current;
+        segmentStartRef.current = null;
+      }
+    };
+  }, [status, tick]);
+
   const ensureSession = useCallback(() => {
     if (!sessionRef.current || sessionRef.current.isFinished) {
       sessionRef.current = new CircuitSession(CIRCUITS);
       setSnapshot(sessionRef.current.snapshot());
+      // fresh workout: reset the timer
+      elapsedMsRef.current = 0;
+      segmentStartRef.current = null;
+      warnedRef.current = false;
+      setElapsedSec(0);
     }
     return sessionRef.current;
   }, []);
@@ -147,6 +212,10 @@ export function useVoiceSession(): UseVoiceSession {
     setPartial('');
     setLastShot(null);
     setError(null);
+    elapsedMsRef.current = 0;
+    segmentStartRef.current = null;
+    warnedRef.current = false;
+    setElapsedSec(0);
   }, []);
 
   const simulateFromClip = useCallback(
@@ -159,6 +228,10 @@ export function useVoiceSession(): UseVoiceSession {
       speaker.enabled = false;
       sessionRef.current = new CircuitSession(CIRCUITS);
       setSnapshot(sessionRef.current.snapshot());
+      elapsedMsRef.current = 0;
+      segmentStartRef.current = null;
+      warnedRef.current = false;
+      setElapsedSec(0);
       setStatus('listening');
       try {
         const res = await fetch(url);
@@ -211,6 +284,8 @@ export function useVoiceSession(): UseVoiceSession {
     feedback,
     lastShot,
     error,
+    elapsedSec,
+    remainingSec: Math.max(0, SESSION_LIMIT_SEC - elapsedSec),
     start,
     stop,
     reset,
