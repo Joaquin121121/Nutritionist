@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Utensils, TrendingUp, Brain, Headphones, Target } from 'lucide-react';
+import { TrendingUp, Brain, Headphones, Target } from 'lucide-react';
 
+// Track & Progress are merged into a single tab. Day-logging happens in a
+// modal opened from within the merged page.
 const tabs = [
-  { href: '/track', label: 'Track', icon: Utensils },
-  { href: '/progress', label: 'Progress', icon: TrendingUp },
+  { href: '/track', label: 'Progress', icon: TrendingUp },
   { href: '/basketball', label: 'Hoops', icon: Target },
   { href: '/deep-work', label: 'Focus', icon: Brain },
   { href: '/audiobook', label: 'Audio', icon: Headphones },
@@ -19,7 +20,10 @@ export function BottomNav() {
     <nav className="tabbar pb-safe">
       <div className="tabbar-inner">
         {tabs.map((tab) => {
-          const isActive = pathname === tab.href;
+          // The merged tab also covers the legacy standalone /progress route.
+          const isActive =
+            pathname === tab.href ||
+            (tab.href === '/track' && pathname === '/progress');
           const Icon = tab.icon;
 
           return (

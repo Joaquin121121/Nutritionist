@@ -26,6 +26,9 @@ const FIXED_MEALS_DAILY_TARGET = 5;
 const WEEKDAY_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 const EMPTY = '#ededed';
+// Rest/paused days that are excluded from scoring — a clearly darker gray than
+// EMPTY ("sin dato") so the two read as distinct on the map.
+const IGNORED = '#9ca3af';
 
 interface DaySquare {
   key: string;
@@ -94,6 +97,12 @@ export function ContributionMap({ logs, mode, start, end }: ContributionMapProps
       }
 
       const log = logsByDate.get(key);
+
+      // Ignored (rest/paused) days are gray regardless of mode.
+      if (log?.ignored) {
+        return { key, color: IGNORED, label: `${format(date, 'd/M')} — Día ignorado`, inRange: true };
+      }
+
       const { color, label } =
         mode === 'nutrition' ? nutritionColor(log) : physicalColor(log);
 
@@ -109,12 +118,14 @@ export function ContributionMap({ logs, mode, start, end }: ContributionMapProps
           ['Sin dato', EMPTY],
           ['Cheat', 'var(--amber)'],
           ['Fallado', 'var(--red)'],
+          ['Ignorado', IGNORED],
         ]
       : [
           ['Pesas', 'var(--green)'],
           ['Basquet', '#e08a3e'],
           ['Ambos', 'var(--blue)'],
-          ['Descanso', EMPTY],
+          ['Sin actividad', EMPTY],
+          ['Ignorado', IGNORED],
         ];
 
   return (

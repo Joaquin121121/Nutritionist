@@ -40,6 +40,8 @@ export interface DailyLog {
   fixed_meals: Record<string, boolean>;
   cheat_meals: CheatMeal[];
   fitness_activities: FitnessActivity[];
+  /** When true the day is a rest/paused day: excluded from score and totals. */
+  ignored?: boolean;
   created_at: string;
   updated_at: string;
 }

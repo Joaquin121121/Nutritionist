@@ -18,11 +18,11 @@ export const VARIABLE_MEALS: VariableMeal[] = [
 export const FIXED_MEALS: FixedMeal[] = [
   { id: "shake", name: "Batido", emoji: "🥤" },
   { id: "banana", name: "Banana", emoji: "🍌" },
-  { id: "apple", name: "Manzana", emoji: "🍎" },
+  { id: "banana_2", name: "Banana", emoji: "🍌" },
   {
     id: "yogurt_strawberries",
-    name: "Yogur griego con frutillas y cereales",
-    emoji: "🍓",
+    name: "Yogur griego con cereales",
+    emoji: "🥣",
   },
   { id: "scrambled_eggs", name: "Huevos/Whey", emoji: "🍳" },
 ];
@@ -30,7 +30,7 @@ export const FIXED_MEALS: FixedMeal[] = [
 export const DEFAULT_FIXED_MEALS: Record<string, boolean> = {
   shake: false,
   banana: false,
-  apple: false,
+  banana_2: false,
   yogurt_strawberries: false,
   scrambled_eggs: false,
 };

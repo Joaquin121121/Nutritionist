@@ -29,6 +29,7 @@ export async function upsertDailyLog(
     fixed_meals?: Record<string, boolean>;
     cheat_meals?: CheatMeal[];
     fitness_activities?: FitnessActivity[];
+    ignored?: boolean;
   }
 ): Promise<DailyLog | null> {
   const supabase = getSupabase();
@@ -42,6 +43,7 @@ export async function upsertDailyLog(
     fixed_meals: updates.fixed_meals ?? existing?.fixed_meals ?? DEFAULT_FIXED_MEALS,
     cheat_meals: updates.cheat_meals ?? existing?.cheat_meals ?? [],
     fitness_activities: updates.fitness_activities ?? existing?.fitness_activities ?? [],
+    ignored: updates.ignored ?? existing?.ignored ?? false,
     updated_at: new Date().toISOString(),
   };
 
@@ -57,6 +59,58 @@ export async function upsertDailyLog(
   }
 
   return data;
+}
+
+/** Yield every `yyyy-MM-dd` from `start` to `end` inclusive. */
+function* eachDateInclusive(start: string, end: string): Generator<string> {
+  const cur = new Date(`${start}T00:00:00Z`);
+  const last = new Date(`${end}T00:00:00Z`);
+  while (cur <= last) {
+    yield cur.toISOString().slice(0, 10);
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+}
+
+/**
+ * Mark every day in the inclusive range as ignored (a rest/paused day),
+ * preserving any meals/activities already logged on those days. Days without
+ * an existing log get an empty ignored row so the contribution map can render
+ * them gray. Idempotent — safe to call repeatedly while tracking is paused.
+ */
+export async function markDaysIgnored(
+  startDate: string,
+  endDate: string
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase || startDate > endDate) return;
+
+  const existing = await getDailyLogsRange(startDate, endDate);
+  const byDate = new Map(existing.map((log) => [log.date, log]));
+
+  const nowIso = new Date().toISOString();
+  const payloads = Array.from(eachDateInclusive(startDate, endDate)).map((date) => {
+    const prev = byDate.get(date);
+    return {
+      date,
+      variable_meals: prev?.variable_meals ?? [],
+      fixed_meals: prev?.fixed_meals ?? DEFAULT_FIXED_MEALS,
+      cheat_meals: prev?.cheat_meals ?? [],
+      fitness_activities: prev?.fitness_activities ?? [],
+      ignored: true,
+      updated_at: nowIso,
+    };
+  });
+
+  if (payloads.length === 0) return;
+
+  const { error } = await supabase
+    .from('daily_logs')
+    .upsert(payloads, { onConflict: 'date' });
+
+  if (error) {
+    console.error('Error marking days ignored:', error);
+    throw error;
+  }
 }
 
 export async function getDailyLogsRange(
@@ -549,6 +603,23 @@ export async function getDeepWorkSessionsRange(
 
   if (error) {
     console.error('Error fetching deep work sessions range:', error);
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function getAllDeepWorkSessions(): Promise<DeepWorkSession[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('deep_work_sessions')
+    .select('*')
+    .order('date', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching all deep work sessions:', error);
     throw error;
   }
 

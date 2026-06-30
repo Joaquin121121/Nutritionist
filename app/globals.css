@@ -797,6 +797,14 @@ body {
   font-size: 12px;
   color: var(--muted);
 }
+/* Progress header with inline tracking switch */
+.progress-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .seg-range {
   margin-bottom: 16px;
 }
@@ -986,6 +994,19 @@ body {
   aspect-ratio: 1;
   border-radius: 5px;
 }
+/* Today's square pulses light green regardless of progress. */
+.heat-cell-today {
+  background: #86efac;
+  animation: heat-today-blink 1.4s ease-in-out infinite;
+}
+@keyframes heat-today-blink {
+  0%, 100% {
+    background: #bbf7d0;
+  }
+  50% {
+    background: #4ade80;
+  }
+}
 .heat-legend {
   display: flex;
   flex-wrap: wrap;
@@ -1034,6 +1055,12 @@ body {
 }
 .focus-head .eyebrow {
   display: block;
+}
+
+/* Timer + per-day heatmap: stacked on mobile (heatmap sits under the timer,
+   before Historial). On desktop they sit side-by-side. */
+.focus-heat {
+  margin-top: 22px;
 }
 
 .lock-btn {
@@ -1490,4 +1517,171 @@ body {
 }
 .round-btn.big:active {
   background: var(--accent-press);
+}
+
+/* ===========================================================
+   LOG-DAY BUTTON + MODAL (merged Track within Progress)
+   =========================================================== */
+.log-day-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 22px;
+  padding: 14px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: #fff;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(193, 95, 60, 0.28);
+  transition: background 0.15s, transform 0.1s;
+}
+.log-day-btn:active {
+  background: var(--accent-press);
+  transform: scale(0.99);
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(23, 23, 23, 0.42);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.2s ease both;
+}
+.modal-sheet {
+  width: 100%;
+  max-width: 460px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border-radius: 22px 22px 0 0;
+  box-shadow: var(--sh-pop);
+  animation: sheetUp 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes sheetUp {
+  from {
+    transform: translateY(24px);
+    opacity: 0.6;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--hair);
+  flex: 0 0 auto;
+}
+.modal-head strong {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.modal-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--hair);
+  background: #fff;
+  color: var(--ink-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.modal-close:active {
+  background: #f3f3f3;
+}
+.modal-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 4px 20px 28px;
+  overscroll-behavior: contain;
+}
+
+/* ===========================================================
+   DESKTOP — side-by-side Focus, centered log-day modal
+   =========================================================== */
+@media (min-width: 1024px) {
+  /* Focus: heatmap moves to the right of the timer instead of beneath it. */
+  .focus-screen {
+    max-width: 920px;
+  }
+  .focus-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 32px;
+  }
+  .focus-timer-col {
+    flex: 0 0 320px;
+    order: 2; /* timer on the right */
+  }
+  .focus-main .focus-heat {
+    flex: 1 1 0;
+    min-width: 0;
+    order: 1; /* tracker on the left */
+  }
+  /* Timer and contribution map line up: identical top offset & padding. */
+  .focus-main .focus-timer-col > .sec,
+  .focus-main .focus-heat {
+    margin-top: 0;
+  }
+  .focus-main .timer-card,
+  .focus-main .heat-card {
+    padding: 18px;
+  }
+
+}
+
+/* ===========================================================
+   WIDE LOG-DAY MODAL — kicks in for any non-phone width so it is
+   not constrained by the 460px mobile container.
+   =========================================================== */
+@media (min-width: 700px) {
+  /* Center the log-day modal as a dialog rather than a bottom sheet. */
+  .modal-overlay {
+    align-items: center;
+    padding: 24px;
+  }
+  .modal-sheet {
+    width: 80vw;
+    max-width: 80vw;
+    max-height: 88vh;
+    border-radius: 22px;
+    flex-shrink: 0; /* never let the flex centering shrink it below 80vw */
+  }
+  .modal-body {
+    padding: 8px 28px 32px;
+  }
+  /* Lay the logging sections out in two columns inside the wider modal.
+     minmax(0,1fr) stops long card text from blowing the columns wider than
+     the modal (which previously forced a horizontal scrollbar). */
+  .modal-body .log-zone {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 28px;
+    row-gap: 4px;
+    align-items: start;
+  }
+  .modal-body .log-zone > .sec {
+    margin-top: 22px;
+  }
+  /* The daily summary spans the full width as a footer row. */
+  .modal-body .log-zone > .sec:last-child {
+    grid-column: 1 / -1;
+  }
 }

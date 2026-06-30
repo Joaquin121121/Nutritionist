@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS daily_logs (
   fixed_meals JSONB DEFAULT '{}',
   cheat_meals JSONB DEFAULT '[]',
   fitness_activities JSONB DEFAULT '[]',
+  ignored BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -73,6 +74,16 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                  WHERE table_name = 'daily_logs' AND column_name = 'fitness_activities') THEN
     ALTER TABLE daily_logs ADD COLUMN fitness_activities JSONB DEFAULT '[]';
+  END IF;
+END $$;
+
+-- Add "ignored" flag to daily_logs: rest/paused days excluded from the score
+-- and expected totals, rendered gray on the contribution map.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_name = 'daily_logs' AND column_name = 'ignored') THEN
+    ALTER TABLE daily_logs ADD COLUMN ignored BOOLEAN NOT NULL DEFAULT FALSE;
   END IF;
 END $$;
 

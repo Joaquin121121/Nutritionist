@@ -15,5 +15,9 @@
       "Bash(node:*)",
       "Bash(xargs wc:*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "supabase"
+  ],
+  "enableAllProjectMcpServers": true
 }

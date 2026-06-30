@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { argentinaToday } from './time';
 
 const STORAGE_KEY = 'tracking-enabled';
+const PAUSED_SINCE_KEY = 'tracking-paused-since';
 const EVENT_NAME = 'tracking-enabled-change';
 
 /** Read the current tracking setting. Defaults to true when unset. */
@@ -12,10 +14,28 @@ export function isTrackingEnabled(): boolean {
   return value === null ? true : value === 'true';
 }
 
+/**
+ * The Argentina date (`yyyy-MM-dd`) on which tracking was last paused, or null
+ * when tracking is active. Every day from this date through "today" is treated
+ * as an ignored (rest) day until tracking is resumed.
+ */
+export function getPausedSince(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(PAUSED_SINCE_KEY);
+}
+
 /** Persist the tracking setting and notify listeners in this window. */
 export function setTrackingEnabled(enabled: boolean): void {
   if (typeof window === 'undefined') return;
+  const wasEnabled = isTrackingEnabled();
   localStorage.setItem(STORAGE_KEY, String(enabled));
+  if (!enabled && wasEnabled) {
+    // Just paused — remember the Argentina day the pause began so the whole
+    // span (including days the app isn't opened) can be ignored.
+    localStorage.setItem(PAUSED_SINCE_KEY, argentinaToday());
+  } else if (enabled) {
+    localStorage.removeItem(PAUSED_SINCE_KEY);
+  }
   window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: enabled }));
 }
 

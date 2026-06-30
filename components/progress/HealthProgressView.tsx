@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
   format,
   startOfWeek,
@@ -14,12 +14,10 @@ import {
 } from 'date-fns';
 import {
   TimeRangeSelector,
-  MetricCard,
   CompoundScore,
 } from '@/components/progress';
 import type { TimeRange } from '@/components/progress';
 import { ContributionMap } from './ContributionMap';
-import type { ContributionMode } from './ContributionMap';
 import { useTrackingEnabled } from '@/lib/tracking';
 import type { DailyLog } from '@/types';
 
@@ -35,7 +33,7 @@ const TARGETS = {
   variableMeals: 85,
   fixedMeals: 85,
   weightlifting: 57.1,
-  basketball: 57.1,
+  basketball: 0,
   cheatMeals: 21.4,
 };
 
@@ -144,7 +142,9 @@ function calculateCompoundScore(metrics: MetricsData): number {
   const variableMealsScore = Math.min(100, (metrics.variableMeals.percentage / TARGETS.variableMeals) * 100);
   const fixedMealsScore = Math.min(100, (metrics.fixedMeals.percentage / TARGETS.fixedMeals) * 100);
   const weightliftingScore = Math.min(100, (metrics.weightlifting.percentage / TARGETS.weightlifting) * 100);
-  const basketballScore = Math.min(100, (metrics.basketball.percentage / TARGETS.basketball) * 100);
+  const basketballScore = TARGETS.basketball > 0
+    ? Math.min(100, (metrics.basketball.percentage / TARGETS.basketball) * 100)
+    : 100;
   const cheatMealsScore = Math.max(0, 100 - (metrics.cheatMeals.percentage / TARGETS.cheatMeals) * 50);
 
   const compoundScore =
@@ -161,14 +161,15 @@ interface HealthProgressViewProps {
   logs: DailyLog[];
   timeRange: TimeRange;
   onTimeRangeChange: (range: TimeRange) => void;
+  /** Optional CTA (e.g. "Registrar día") rendered just above the contribution map. */
+  actionSlot?: ReactNode;
 }
 
-export function HealthProgressView({ logs, timeRange, onTimeRangeChange }: HealthProgressViewProps) {
+export function HealthProgressView({ logs, timeRange, onTimeRangeChange, actionSlot }: HealthProgressViewProps) {
   const today = useMemo(() => new Date(), []);
   const [trackingEnabled, setTrackingEnabled] = useTrackingEnabled();
-  const [dataMode, setDataMode] = useState<ContributionMode>('nutrition');
 
-  const { metrics, compoundScore, range } = useMemo(() => {
+  const { compoundScore, range } = useMemo(() => {
     const { start, end } = getDateRange(timeRange, today, logs);
     const daysInRange = eachDayOfInterval({ start, end }).length;
 
@@ -183,7 +184,6 @@ export function HealthProgressView({ logs, timeRange, onTimeRangeChange }: Healt
     const score = calculateCompoundScore(metricsData);
 
     return {
-      metrics: metricsData,
       compoundScore: score,
       range: { start, end },
     };
@@ -191,21 +191,17 @@ export function HealthProgressView({ logs, timeRange, onTimeRangeChange }: Healt
 
   return (
     <div className="fade-in">
-      <div className="screen-title">
-        <span className="eyebrow">Tu evolución</span>
-        <h2>Progreso</h2>
-      </div>
-
-      {/* Tracking switch */}
-      <div className="track-row card">
+      <div className="screen-title progress-title">
         <div>
-          <strong>Seguimiento</strong>
-          <span>{trackingEnabled ? 'Registrando tu día' : 'En pausa'}</span>
+          <span className="eyebrow">Tu evolución</span>
+          <h2>Progreso</h2>
         </div>
+        {/* Tracking switch — inline with header to save space */}
         <button
           type="button"
           role="switch"
           aria-checked={trackingEnabled}
+          aria-label={trackingEnabled ? 'Seguimiento activo' : 'Seguimiento en pausa'}
           onClick={() => setTrackingEnabled(!trackingEnabled)}
           className={`switch${trackingEnabled ? ' on' : ''}`}
         >
@@ -217,89 +213,16 @@ export function HealthProgressView({ logs, timeRange, onTimeRangeChange }: Healt
 
       <CompoundScore score={compoundScore} />
 
-      {/* Data mode selector */}
-      <div className="seg seg-mode">
-        <button
-          type="button"
-          onClick={() => setDataMode('nutrition')}
-          className={dataMode === 'nutrition' ? 'active' : ''}
-        >
-          🥗 Nutrición
-        </button>
-        <button
-          type="button"
-          onClick={() => setDataMode('physical')}
-          className={dataMode === 'physical' ? 'active' : ''}
-        >
-          🏋️ Actividad física
-        </button>
-      </div>
+      {/* Log-day CTA sits just above the contribution map */}
+      {actionSlot}
 
-      {/* Horizontal metric carousel */}
-      <div className="metric-scroll">
-        {dataMode === 'nutrition' ? (
-          <>
-            <MetricCard
-              title="Comidas variables"
-              emoji="🥗"
-              percentage={metrics.variableMeals.percentage}
-              target={TARGETS.variableMeals}
-              numerator={metrics.variableMeals.count}
-              denominator={metrics.variableMeals.total}
-              unit="meals"
-            />
-            <MetricCard
-              title="Comidas fijas"
-              emoji="🍳"
-              percentage={metrics.fixedMeals.percentage}
-              target={TARGETS.fixedMeals}
-              numerator={metrics.fixedMeals.count}
-              denominator={metrics.fixedMeals.total}
-              unit="meals"
-            />
-            <MetricCard
-              title="Cheat meals"
-              emoji="🍰"
-              percentage={metrics.cheatMeals.percentage}
-              target={TARGETS.cheatMeals}
-              numerator={metrics.cheatMeals.count}
-              denominator={metrics.cheatMeals.total}
-              unit="meals"
-              isInverse
-            />
-          </>
-        ) : (
-          <>
-            <MetricCard
-              title="Pesas"
-              emoji="🏋️"
-              percentage={metrics.weightlifting.percentage}
-              target={TARGETS.weightlifting}
-              numerator={metrics.weightlifting.count}
-              denominator={metrics.weightlifting.total}
-              unit="days"
-            />
-            <MetricCard
-              title="Basquet Pickup"
-              emoji="🏀"
-              percentage={metrics.basketball.percentage}
-              target={TARGETS.basketball}
-              numerator={metrics.basketball.count}
-              denominator={metrics.basketball.total}
-              unit="days"
-            />
-          </>
-        )}
-        <div className="metric-end" />
-      </div>
-
-      {/* GitHub-style contribution map */}
+      {/* GitHub-style contribution map — last section */}
       <section className="sec">
         <div className="sec-head">
           <h3>Constancia</h3>
           <span className="sec-count">Por día</span>
         </div>
-        <ContributionMap logs={logs} mode={dataMode} start={range.start} end={range.end} />
+        <ContributionMap logs={logs} mode="nutrition" start={range.start} end={range.end} />
       </section>
     </div>
   );

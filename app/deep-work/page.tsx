@@ -8,7 +8,7 @@ import {
   TargetSelector,
   ProgressBar,
   Timer,
-  DeepWorkHistory,
+  FocusHeatmap,
 } from '@/components/deep-work';
 import type { TimerMode } from '@/components/deep-work/Timer';
 import {
@@ -264,7 +264,7 @@ export default function DeepWorkPage() {
   }
 
   return (
-    <div className="app-screen fade-in">
+    <div className="app-screen focus-screen fade-in">
       {/* Audio element */}
       <audio ref={audioRef} src="/brd.mp3" preload="auto" />
 
@@ -279,12 +279,14 @@ export default function DeepWorkPage() {
         </div>
       </div>
 
-      {/* Target Selector / Locked Display */}
-      <TargetSelector
-        selectedTarget={session?.target_minutes ?? null}
-        isLocked={session !== null}
-        onSelect={handleSelectTarget}
-      />
+      {/* Target Selector — hidden once a target is locked in for the day */}
+      {!session && (
+        <TargetSelector
+          selectedTarget={null}
+          isLocked={false}
+          onSelect={handleSelectTarget}
+        />
+      )}
 
       {/* Show timer components only if session exists */}
       {session && (
@@ -295,22 +297,25 @@ export default function DeepWorkPage() {
             targetMinutes={session.target_minutes}
           />
 
-          {/* Unified Timer */}
-          <Timer
-            mode={mode}
-            intervalMinutes={intervalMinutes}
-            elapsedSeconds={elapsedSeconds}
-            isRunning={isRunning}
-            disabled={false}
-            onModeChange={handleModeChange}
-            onIntervalChange={handleIntervalChange}
-            onStart={handleStart}
-            onPause={handlePause}
-            onReset={handleReset}
-          />
-
-          {/* History */}
-          <DeepWorkHistory />
+          {/* Timer + tracker — stacked on mobile (timer first); on desktop the
+              tracker sits to the LEFT and timer to the RIGHT (see CSS order). */}
+          <div className="focus-main mt-8">
+            <div className="focus-timer-col">
+              <Timer
+                mode={mode}
+                intervalMinutes={intervalMinutes}
+                elapsedSeconds={elapsedSeconds}
+                isRunning={isRunning}
+                disabled={false}
+                onModeChange={handleModeChange}
+                onIntervalChange={handleIntervalChange}
+                onStart={handleStart}
+                onPause={handlePause}
+                onReset={handleReset}
+              />
+            </div>
+            <FocusHeatmap />
+          </div>
         </>
       )}
     </div>

@@ -1,9 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { format, startOfWeek, endOfWeek } from 'date-fns';
-import { Plus, Check, MessageSquare } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { format, startOfWeek, endOfWeek, startOfYear, endOfYear } from 'date-fns';
+import { Plus, Check, MessageSquare, X } from 'lucide-react';
 import { DayNavigator, MealCard, CheatMealInput, FitnessSection } from '@/components/track';
+import { HealthProgressView } from '@/components/progress';
+import type { TimeRange } from '@/components/progress';
 import { VARIABLE_MEALS, FIXED_MEALS, DEFAULT_FIXED_MEALS } from '@/data/meals';
 import { getDailyLog, getDailyLogsRange, upsertDailyLog } from '@/lib/database';
 import { useTrackingEnabled } from '@/lib/tracking';
@@ -23,6 +26,13 @@ export default function TrackPage() {
   const [commentDraft, setCommentDraft] = useState('');
   const [weeklyServings, setWeeklyServings] = useState<Record<string, number>>({});
   const [trackingEnabled] = useTrackingEnabled();
+
+  // Track + Progress are merged: the page shows the progress view, and the
+  // day-logging UI lives in a modal opened with the "Registrar día" button.
+  const [timeRange, setTimeRange] = useState<TimeRange>('week');
+  const [progressLogs, setProgressLogs] = useState<DailyLog[]>([]);
+  const [progressRefresh, setProgressRefresh] = useState(0);
+  const [showLogModal, setShowLogModal] = useState(false);
 
   const dateString = format(selectedDate, 'yyyy-MM-dd');
   const commentKey = `track-comment-${dateString}`;
@@ -70,6 +80,20 @@ export default function TrackPage() {
     loadWeeklyServings();
   }, [loadDailyLog, loadWeeklyServings]);
 
+  // Load the year-wide logs that power the merged progress view.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const yearStart = format(startOfYear(new Date()), 'yyyy-MM-dd');
+      const yearEnd = format(endOfYear(new Date()), 'yyyy-MM-dd');
+      const data = await getDailyLogsRange(yearStart, yearEnd);
+      if (!cancelled) setProgressLogs(data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [progressRefresh]);
+
   // Load comment from localStorage when date changes
   useEffect(() => {
     const savedComment = localStorage.getItem(commentKey);
@@ -98,6 +122,8 @@ export default function TrackPage() {
   const saveLog = async (updates: Partial<Pick<DailyLog, 'variable_meals' | 'fixed_meals' | 'cheat_meals' | 'fitness_activities'>>) => {
     try {
       await upsertDailyLog(dateString, updates);
+      // Keep the progress view in sync with edits made in the log modal.
+      setProgressRefresh((n) => n + 1);
     } catch (error) {
       console.error('Error saving daily log:', error);
     }
@@ -173,8 +199,41 @@ export default function TrackPage() {
     );
   }
 
+  const logDayButton = (
+    <button type="button" className="log-day-btn" onClick={() => setShowLogModal(true)}>
+      <Plus width={18} height={18} strokeWidth={2.4} />
+      Registrar día
+    </button>
+  );
+
   return (
     <div className="app-screen fade-in">
+      {/* Progress is the primary content of the merged tab.
+          The log-day CTA renders just above the contribution map. */}
+      <HealthProgressView
+        logs={progressLogs}
+        timeRange={timeRange}
+        onTimeRangeChange={setTimeRange}
+        actionSlot={logDayButton}
+      />
+
+      {/* Day-logging modal — portaled to <body> so no ancestor (the 460px
+          .app-screen) can constrain its width. */}
+      {showLogModal && createPortal(
+        <div className="modal-overlay" onClick={() => setShowLogModal(false)}>
+          <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <strong>Registrar día</strong>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Cerrar"
+                onClick={() => setShowLogModal(false)}
+              >
+                <X width={20} height={20} />
+              </button>
+            </div>
+            <div className="modal-body">
       <DayNavigator selectedDate={selectedDate} onDateChange={setSelectedDate} />
 
       {/* Tracking paused banner */}
@@ -345,6 +404,11 @@ export default function TrackPage() {
           </div>
         </section>
       </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
