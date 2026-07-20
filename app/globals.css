@@ -1259,6 +1259,22 @@ body {
 .t-main[data-rest="true"] {
   background: var(--green);
 }
+.t-main:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Start checklist modal — reuses .ck-row from the fixed-meals list. */
+.checklist-confirm {
+  width: 100%;
+  justify-content: center;
+  margin-top: 18px;
+  padding: 14px;
+}
+.checklist-confirm:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 
 .hist-row {
   display: flex;

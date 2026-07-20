@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { Play, Pause, RotateCcw } from 'lucide-react';
 import type { WorkIntervalMinutes } from '@/types';
+import { StartChecklistModal } from './StartChecklistModal';
 
 export type TimerMode = 'work' | 'rest';
 
@@ -51,6 +53,16 @@ export function Timer({
   const isOvertime = remainingSeconds < 0;
   const ringProgress = Math.min(1, elapsedSeconds / totalSeconds);
   const isWork = mode === 'work';
+
+  const [showChecklist, setShowChecklist] = useState(false);
+
+  const handleStartClick = () => {
+    if (isWork) {
+      setShowChecklist(true);
+    } else {
+      onStart();
+    }
+  };
 
   return (
     <section className="sec">
@@ -110,7 +122,7 @@ export function Timer({
             <RotateCcw width={18} height={18} strokeWidth={2} />
           </button>
           {!isRunning ? (
-            <button className="t-btn t-main" data-rest={!isWork} disabled={disabled} onClick={onStart}>
+            <button className="t-btn t-main" data-rest={!isWork} disabled={disabled} onClick={handleStartClick}>
               <Play width={20} height={20} fill="currentColor" />
               {elapsedSeconds > 0 ? 'Continuar' : 'Iniciar'}
             </button>
@@ -131,6 +143,15 @@ export function Timer({
           </p>
         )}
       </div>
+
+      <StartChecklistModal
+        open={showChecklist}
+        onClose={() => setShowChecklist(false)}
+        onConfirm={() => {
+          setShowChecklist(false);
+          onStart();
+        }}
+      />
     </section>
   );
 }
