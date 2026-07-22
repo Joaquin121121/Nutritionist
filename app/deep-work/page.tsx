@@ -288,36 +288,36 @@ export default function DeepWorkPage() {
         />
       )}
 
-      {/* Show timer components only if session exists */}
+      {/* Progress bar only makes sense once a target exists */}
       {session && (
-        <>
-          {/* Progress Bar */}
-          <ProgressBar
-            loggedMinutes={session.logged_minutes}
-            targetMinutes={session.target_minutes}
-          />
-
-          {/* Timer + tracker — stacked on mobile (timer first); on desktop the
-              tracker sits to the LEFT and timer to the RIGHT (see CSS order). */}
-          <div className="focus-main mt-8">
-            <div className="focus-timer-col">
-              <Timer
-                mode={mode}
-                intervalMinutes={intervalMinutes}
-                elapsedSeconds={elapsedSeconds}
-                isRunning={isRunning}
-                disabled={false}
-                onModeChange={handleModeChange}
-                onIntervalChange={handleIntervalChange}
-                onStart={handleStart}
-                onPause={handlePause}
-                onReset={handleReset}
-              />
-            </div>
-            <FocusHeatmap />
-          </div>
-        </>
+        <ProgressBar
+          loggedMinutes={session.logged_minutes}
+          targetMinutes={session.target_minutes}
+        />
       )}
+
+      {/* Timer + tracker — stacked on mobile (timer first); on desktop the
+          tracker sits to the LEFT and timer to the RIGHT (see CSS order).
+          The heatmap is always visible, even before today's target is set. */}
+      <div className="focus-main mt-8">
+        {session && (
+          <div className="focus-timer-col">
+            <Timer
+              mode={mode}
+              intervalMinutes={intervalMinutes}
+              elapsedSeconds={elapsedSeconds}
+              isRunning={isRunning}
+              disabled={false}
+              onModeChange={handleModeChange}
+              onIntervalChange={handleIntervalChange}
+              onStart={handleStart}
+              onPause={handlePause}
+              onReset={handleReset}
+            />
+          </div>
+        )}
+        <FocusHeatmap />
+      </div>
     </div>
   );
 }
