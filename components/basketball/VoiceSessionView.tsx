@@ -2,7 +2,17 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
-import { Mic, MicOff, Check, Trophy, RotateCcw, Volume2, Timer } from 'lucide-react';
+import {
+  Mic,
+  MicOff,
+  Check,
+  Trophy,
+  RotateCcw,
+  Volume2,
+  Timer,
+  Sun,
+  TriangleAlert,
+} from 'lucide-react';
 import { CIRCUITS } from '@/data/circuits';
 import { useVoiceSession } from '@/lib/voice/useVoiceSession';
 import { circuitsTotals, saveBasketballSession, getDailyLog, upsertDailyLog } from '@/lib/database';
@@ -29,6 +39,9 @@ export function VoiceSessionView() {
     lastShot,
     error,
     remainingSec,
+    screenAwake,
+    wakeLockSupported,
+    micStalled,
     start,
     stop,
     reset,
@@ -128,6 +141,15 @@ export function VoiceSessionView() {
             {fmtTime(remainingSec)}
           </span>
         </div>
+      )}
+
+      {/* Screen/mic health: a locked screen cuts mic capture, so say so loudly */}
+      {isLive && (
+        <MicHealthBanner
+          screenAwake={screenAwake}
+          wakeLockSupported={wakeLockSupported}
+          micStalled={micStalled}
+        />
       )}
 
       {/* Last-shot flash + mic control */}
@@ -284,6 +306,50 @@ export function VoiceSessionView() {
           ▶ Simular con clip de prueba
         </button>
       )}
+    </div>
+  );
+}
+
+function MicHealthBanner({
+  screenAwake,
+  wakeLockSupported,
+  micStalled,
+}: {
+  screenAwake: boolean;
+  wakeLockSupported: boolean;
+  micStalled: boolean;
+}) {
+  if (micStalled) {
+    return (
+      <div className="card p-3 mb-5 flex items-start gap-2 bg-danger-400/10 border-danger-400">
+        <TriangleAlert className="w-4 h-4 text-danger-600 mt-0.5 shrink-0" />
+        <p className="text-sm text-neutral-700">
+          El microfono se detuvo (pantalla bloqueada u otra app tomo el audio). Toca la pantalla o
+          pulsa Pausar y Reanudar para seguir.
+        </p>
+      </div>
+    );
+  }
+
+  if (screenAwake) {
+    return (
+      <div className="card p-3 mb-5 flex items-center gap-2 bg-success-400/10 border-success-400">
+        <Sun className="w-4 h-4 text-success-600 shrink-0" />
+        <p className="text-sm text-neutral-700">
+          Pantalla activa: puedes dejar el telefono a un lado y seguir tirando.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card p-3 mb-5 flex items-start gap-2 bg-accent-400/15 border-accent-400">
+      <TriangleAlert className="w-4 h-4 text-accent-600 mt-0.5 shrink-0" />
+      <p className="text-sm text-neutral-700">
+        {wakeLockSupported
+          ? 'No se pudo mantener la pantalla encendida. Si se bloquea, el microfono se corta: sube el tiempo de apagado en Ajustes.'
+          : 'Este navegador no puede mantener la pantalla encendida. Desactiva el bloqueo automatico en Ajustes o el microfono se cortara.'}
+      </p>
     </div>
   );
 }

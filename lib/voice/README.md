@@ -31,6 +31,10 @@ mic (getUserMedia)                     recorded clip (decodeAudioData)
   - Live: `VoiceRecognizer` (mic → ScriptProcessor → `acceptWaveform`).
   - Offline/test: `recognizePcm()` (`acceptWaveformFloat`), same decoder.
 - **`circuitEngine.ts`** — pure, framework-agnostic. Feed outcomes, get events.
+- **`keepAwake.ts`** — holds a Screen Wake Lock while listening. Phones lock the
+  screen after ~20s without touch input, which suspends the page and cuts mic
+  capture; a hands-free session is dead without this. The lock is re-taken on
+  every `visibilitychange`, since the browser drops it whenever the page hides.
 - **`speech.ts`** — turns events into spoken cues.
 - **`useVoiceSession.ts`** — React hook wiring recognizer + engine + speech, plus
   `simulateFromClip()` which drives the whole pipeline from a recorded clip (used
@@ -55,4 +59,9 @@ reproduces the 27-word reference sequence with **edit distance 0**.
 
 - Mic capture needs a user gesture (the Start button) and a secure context.
   `localhost` is fine; to use it from a phone, serve over HTTPS.
+- Screen Wake Lock needs the same secure context (Chrome/Android 84+, Safari iOS
+  16.4+). Where it is unavailable or rejected, the UI says so and asks the user to
+  raise the auto-lock timeout — better than going quietly deaf. If the phone does
+  get locked anyway, the session detects the stall (no mic frames for 3s), shows a
+  warning and resumes the suspended AudioContext when the page comes back.
 - Everything runs offline in the browser — no audio leaves the device.

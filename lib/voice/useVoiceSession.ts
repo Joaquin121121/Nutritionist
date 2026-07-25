@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CIRCUITS } from '@/data/circuits';
 import type { ShotOutcome } from '@/types';
 import { CircuitSession, type SessionEvent, type SessionSnapshot } from './circuitEngine';
+import { KeepAwake, isWakeLockSupported } from './keepAwake';
 import { VoiceRecognizer, recognizePcm } from './recognizer';
 import { Speaker, phraseForEvent, startCirclePhrase } from './speech';
 
@@ -12,6 +13,8 @@ export const SESSION_LIMIT_SEC = 25 * 60;
 const SESSION_LIMIT_MS = SESSION_LIMIT_SEC * 1000;
 /** Speak a heads-up when this much time is left. */
 const WARN_AT_MS = SESSION_LIMIT_MS - 60 * 1000;
+/** No mic frame for this long while listening = the capture graph is stalled. */
+const MIC_STALL_MS = 3000;
 
 export type VoiceStatus =
   | 'idle'
@@ -37,6 +40,12 @@ export interface UseVoiceSession {
   elapsedSec: number;
   /** Seconds left until the 25-minute cap auto-ends the session. */
   remainingSec: number;
+  /** True while the screen is held awake so the mic can't be cut off. */
+  screenAwake: boolean;
+  /** False on browsers without the Screen Wake Lock API (client-only value). */
+  wakeLockSupported: boolean;
+  /** True when the mic has gone silent mid-session (screen locked, mic taken). */
+  micStalled: boolean;
   start: () => Promise<void>;
   stop: () => Promise<void>;
   reset: () => void;
@@ -52,6 +61,7 @@ export function useVoiceSession(): UseVoiceSession {
   const sessionRef = useRef<CircuitSession | null>(null);
   const speakerRef = useRef<Speaker | null>(null);
   const recognizerRef = useRef<VoiceRecognizer | null>(null);
+  const keepAwakeRef = useRef<KeepAwake | null>(null);
   const shotIdRef = useRef(0);
 
   // Workout timer: committed elapsed ms across listening segments, plus the
@@ -68,14 +78,21 @@ export function useVoiceSession(): UseVoiceSession {
   const [lastShot, setLastShot] = useState<LastShot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [screenAwake, setScreenAwake] = useState(false);
+  // Assume supported until the client says otherwise, so no warning flashes
+  // during hydration.
+  const [wakeLockSupported, setWakeLockSupported] = useState(true);
+  const [micStalled, setMicStalled] = useState(false);
 
   // Preload the model + speech voices once mounted.
   useEffect(() => {
     VoiceRecognizer.preload();
     if (!speakerRef.current) speakerRef.current = new Speaker();
+    setWakeLockSupported(isWakeLockSupported());
     return () => {
       recognizerRef.current?.stop();
       speakerRef.current?.cancel();
+      void keepAwakeRef.current?.disable();
     };
   }, []);
 
@@ -110,10 +127,20 @@ export function useVoiceSession(): UseVoiceSession {
     [handleEvents]
   );
 
-  // One timer tick: accumulate active time, warn near the end, and auto-finish
-  // the workout once the 25-minute cap is reached.
+  // One timer tick: keep the mic alive, accumulate active time, warn near the
+  // end, and auto-finish the workout once the 25-minute cap is reached.
   const tick = useCallback(() => {
     const now = Date.now();
+
+    // The OS can suspend the capture graph without any error surfacing (screen
+    // off, app switch, another app grabbing the mic), which leaves the session
+    // silently deaf. Nudge it back every second and flag a genuine stall.
+    const recognizer = recognizerRef.current;
+    if (recognizer) {
+      void recognizer.resume();
+      setMicStalled(recognizer.msSinceLastFrame > MIC_STALL_MS);
+    }
+
     const total =
       elapsedMsRef.current + (segmentStartRef.current != null ? now - segmentStartRef.current : 0);
     setElapsedSec(Math.min(SESSION_LIMIT_SEC, Math.floor(total / 1000)));
@@ -150,6 +177,34 @@ export function useVoiceSession(): UseVoiceSession {
       }
     };
   }, [status, tick]);
+
+  // Hold the screen awake for as long as we're listening. Phones lock the
+  // screen after ~20s without touch input, which suspends the page and kills
+  // mic capture — the whole reason a hands-free session needs this. One effect
+  // keyed on `status` covers every exit path (pause, finish, reset, unmount).
+  useEffect(() => {
+    if (status !== 'listening') return;
+    const keepAwake = (keepAwakeRef.current ??= new KeepAwake());
+    let cancelled = false;
+    void keepAwake.enable().then((held) => {
+      if (!cancelled) setScreenAwake(held);
+    });
+
+    // Coming back from a lock/app switch: the wake lock is re-taken by
+    // KeepAwake, but the AudioContext also has to be resumed by hand.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void recognizerRef.current?.resume();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      void keepAwake.disable();
+      setScreenAwake(false);
+      setMicStalled(false);
+    };
+  }, [status]);
 
   const ensureSession = useCallback(() => {
     if (!sessionRef.current || sessionRef.current.isFinished) {
@@ -286,6 +341,9 @@ export function useVoiceSession(): UseVoiceSession {
     error,
     elapsedSec,
     remainingSec: Math.max(0, SESSION_LIMIT_SEC - elapsedSec),
+    screenAwake,
+    wakeLockSupported,
+    micStalled: micStalled && status === 'listening',
     start,
     stop,
     reset,

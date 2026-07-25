@@ -69,6 +69,7 @@ export class VoiceRecognizer {
   private stream: MediaStream | null = null;
   private events: RecognizerEvents;
   private running = false;
+  private lastFrameAt = 0;
 
   constructor(events: RecognizerEvents) {
     this.events = events;
@@ -117,6 +118,7 @@ export class VoiceRecognizer {
     this.node = this.audioContext.createScriptProcessor(4096, 1, 1);
     this.node.onaudioprocess = (event) => {
       if (!this.recognizer) return;
+      this.lastFrameAt = Date.now();
       try {
         this.recognizer.acceptWaveform(event.inputBuffer);
       } catch (err) {
@@ -127,8 +129,34 @@ export class VoiceRecognizer {
     this.node.connect(this.audioContext.destination);
   }
 
+  /**
+   * Bring the capture graph back after the OS suspended it (screen off, tab
+   * backgrounded, another app taking the mic). Cheap and idempotent, so it can
+   * be called on every timer tick and on every visibility change.
+   */
+  async resume(): Promise<void> {
+    if (!this.running || !this.audioContext) return;
+    if (this.audioContext.state === 'suspended') {
+      try {
+        await this.audioContext.resume();
+      } catch {
+        // the context can be unrecoverable; the stall check below reports it
+      }
+    }
+  }
+
+  /**
+   * Milliseconds since the last mic frame reached the decoder. Stays 0 until
+   * capture starts; a value of a few seconds while listening means the graph is
+   * stalled (screen locked, mic taken over) even though nothing threw.
+   */
+  get msSinceLastFrame(): number {
+    return this.lastFrameAt === 0 ? 0 : Date.now() - this.lastFrameAt;
+  }
+
   async stop(): Promise<void> {
     this.running = false;
+    this.lastFrameAt = 0;
     try {
       this.node?.disconnect();
       this.source?.disconnect();
