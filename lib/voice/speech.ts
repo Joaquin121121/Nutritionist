@@ -31,6 +31,23 @@ export class Speaker {
       voices[0];
   }
 
+  /**
+   * Prime the speech engine from inside a user gesture. iOS only allows
+   * `speak()` once it has been called from a gesture handler, and every real cue
+   * fires later from a recognizer or timer callback — so the mic-start button
+   * calls this synchronously (an `await` before it loses the gesture).
+   */
+  prime(): void {
+    if (!this.synth) return;
+    const u = new SpeechSynthesisUtterance(' ');
+    u.volume = 0;
+    try {
+      this.synth.speak(u);
+    } catch {
+      // nothing to unlock on this browser
+    }
+  }
+
   /** Speak immediately, cancelling anything mid-sentence (cues are short). */
   say(text: string, { interrupt = true }: { interrupt?: boolean } = {}) {
     if (!this.enabled || !this.synth) return;
@@ -59,9 +76,7 @@ export function phraseForEvent(ev: SessionEvent): string | null {
       return `Next spot. Spot ${ev.nextSpotIndex + 1}.`;
     case 'circuit-complete':
       if (ev.nextCircuit) {
-        return `Circuit finished: ${ev.makes} of ${ev.attempts} shots, ${pct(
-          ev.pct
-        )} percent. Get ready for the next circuit: ${ev.nextCircuit.name}.`;
+        return `${ev.circuit.name} done. Up next: ${ev.nextCircuit.name}.`;
       }
       // last circuit: the session-complete event speaks instead
       return null;

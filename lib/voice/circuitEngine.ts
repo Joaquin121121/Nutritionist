@@ -23,6 +23,8 @@ export type SessionEvent =
   | {
       type: 'circuit-complete';
       circuitIndex: number;
+      /** The circuit that just finished (the spoken cue names it). */
+      circuit: Circuit;
       makes: number;
       attempts: number;
       pct: number;
@@ -152,6 +154,7 @@ export class CircuitSession {
     events.push({
       type: 'circuit-complete',
       circuitIndex: this.circuitIndex,
+      circuit,
       makes: result.makes,
       attempts: result.attempts,
       pct,

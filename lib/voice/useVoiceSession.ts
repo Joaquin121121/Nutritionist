@@ -6,6 +6,7 @@ import type { ShotOutcome } from '@/types';
 import { CircuitSession, type SessionEvent, type SessionSnapshot } from './circuitEngine';
 import { KeepAwake, isWakeLockSupported } from './keepAwake';
 import { VoiceRecognizer, recognizePcm } from './recognizer';
+import { Sfx } from './sfx';
 import { Speaker, phraseForEvent, startCirclePhrase } from './speech';
 
 /** Hard cap on a single workout: 25 minutes of active (listening) time. */
@@ -60,6 +61,7 @@ function freshSnapshot(): SessionSnapshot {
 export function useVoiceSession(): UseVoiceSession {
   const sessionRef = useRef<CircuitSession | null>(null);
   const speakerRef = useRef<Speaker | null>(null);
+  const sfxRef = useRef<Sfx | null>(null);
   const recognizerRef = useRef<VoiceRecognizer | null>(null);
   const keepAwakeRef = useRef<KeepAwake | null>(null);
   const shotIdRef = useRef(0);
@@ -88,6 +90,7 @@ export function useVoiceSession(): UseVoiceSession {
   useEffect(() => {
     VoiceRecognizer.preload();
     if (!speakerRef.current) speakerRef.current = new Speaker();
+    if (!sfxRef.current) sfxRef.current = new Sfx();
     setWakeLockSupported(isWakeLockSupported());
     return () => {
       recognizerRef.current?.stop();
@@ -102,6 +105,8 @@ export function useVoiceSession(): UseVoiceSession {
       if (ev.type === 'shot') {
         shotIdRef.current += 1;
         setLastShot({ outcome: ev.outcome, id: shotIdRef.current });
+        // Immediate audible confirmation that the call was registered.
+        sfxRef.current?.play(ev.outcome);
       }
       const phrase = phraseForEvent(ev);
       if (phrase) {
@@ -222,6 +227,12 @@ export function useVoiceSession(): UseVoiceSession {
   const start = useCallback(async () => {
     setError(null);
     if (!speakerRef.current) speakerRef.current = new Speaker();
+    if (!sfxRef.current) sfxRef.current = new Sfx();
+    // Still inside the button's gesture: unlock audio + speech here, because
+    // every later cue fires from a recognizer or timer callback, which mobile
+    // autoplay policies block unless playback was already primed.
+    sfxRef.current.unlock();
+    speakerRef.current.prime();
     const session = ensureSession();
 
     // resume from pause: just restart the recognizer
@@ -277,10 +288,15 @@ export function useVoiceSession(): UseVoiceSession {
     async (url = '/test/voice-sample.m4a', repeat = 1) => {
       setError(null);
       if (!speakerRef.current) speakerRef.current = new Speaker();
-      // mute speech during fast simulation to avoid a queue pileup
+      // mute speech + shot sounds during fast simulation (dozens of shots land
+      // back to back, which would pile up the speech queue and machine-gun the
+      // chimes)
       const speaker = speakerRef.current;
+      const sfx = sfxRef.current;
       const prevEnabled = speaker.enabled;
+      const prevSfxEnabled = sfx?.enabled ?? true;
       speaker.enabled = false;
+      if (sfx) sfx.enabled = false;
       sessionRef.current = new CircuitSession(CIRCUITS);
       setSnapshot(sessionRef.current.snapshot());
       elapsedMsRef.current = 0;
@@ -326,6 +342,7 @@ export function useVoiceSession(): UseVoiceSession {
         setStatus('error');
       } finally {
         speaker.enabled = prevEnabled;
+        if (sfx) sfx.enabled = prevSfxEnabled;
         setStatus((s) => (s === 'error' ? s : sessionRef.current?.isFinished ? 'finished' : 'paused'));
       }
     },

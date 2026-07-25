@@ -16,11 +16,12 @@ mic (getUserMedia)                     recorded clip (decodeAudioData)
                           │  emits "make" / "miss"
                           ▼
                   circuitEngine.ts  (pure state machine)
+                   ├─ shot        → make.mp3 / miss.mp3 chime
                    ├─ spot done   → "Next spot. Spot N."
-                   ├─ circuit done→ "Circuit finished: a of b shots, c%. Next: <name>."
+                   ├─ circuit done→ "<circuit> done. Up next: <next circuit>."
                    └─ session done→ "Session finished! ..."
                           │
-                  speech.ts (SpeechSynthesis)  +  React UI  +  Supabase save
+              speech.ts (SpeechSynthesis) + sfx.ts (mp3)  +  React UI  +  Supabase save
 ```
 
 - **`recognizer.ts`** — wraps [`vosk-browser`]. The grammar is just two words, so
@@ -36,6 +37,12 @@ mic (getUserMedia)                     recorded clip (decodeAudioData)
   capture; a hands-free session is dead without this. The lock is re-taken on
   every `visibilitychange`, since the browser drops it whenever the page hides.
 - **`speech.ts`** — turns events into spoken cues.
+- **`sfx.ts`** — the per-shot chimes (`public/sounds/make.mp3`, `miss.mp3`, ~300 ms
+  each, generated tones — drop in your own files to change them). Speech only
+  fires on transitions, so these are the "I heard you" feedback for every shot.
+  Both audio paths are unlocked from the Start button's gesture (`Sfx.unlock()`,
+  `Speaker.prime()`); without that, mobile autoplay policy silently blocks cues
+  fired from recognizer/timer callbacks.
 - **`useVoiceSession.ts`** — React hook wiring recognizer + engine + speech, plus
   `simulateFromClip()` which drives the whole pipeline from a recorded clip (used
   for dogfooding and the dev "Simular con clip" button).
