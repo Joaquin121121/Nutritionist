@@ -76,7 +76,9 @@ export function phraseForEvent(ev: SessionEvent): string | null {
       return `Next spot. Spot ${ev.nextSpotIndex + 1}.`;
     case 'circuit-complete':
       if (ev.nextCircuit) {
-        return `${ev.circuit.name} done. Up next: ${ev.nextCircuit.name}.`;
+        return `Circuit finished: ${ev.makes} of ${ev.attempts} shots, ${pct(
+          ev.pct
+        )} percent. Get ready for the next circuit: ${ev.nextCircuit.name}.`;
       }
       // last circuit: the session-complete event speaks instead
       return null;

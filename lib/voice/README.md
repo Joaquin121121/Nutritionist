@@ -18,7 +18,7 @@ mic (getUserMedia)                     recorded clip (decodeAudioData)
                   circuitEngine.ts  (pure state machine)
                    ├─ shot        → make.mp3 / miss.mp3 chime
                    ├─ spot done   → "Next spot. Spot N."
-                   ├─ circuit done→ "<circuit> done. Up next: <next circuit>."
+                   ├─ circuit done→ "Circuit finished: a of b shots, c%. Next: <name>."
                    └─ session done→ "Session finished! ..."
                           │
               speech.ts (SpeechSynthesis) + sfx.ts (mp3)  +  React UI  +  Supabase save
