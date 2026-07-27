@@ -43,7 +43,12 @@ const LEGEND: [string, string][] = [
   ['Sin sesión', EMPTY],
 ];
 
-export function FocusHeatmap() {
+interface FocusHeatmapProps {
+  /** Change this to force a re-read after minutes are logged. */
+  refreshKey?: number;
+}
+
+export function FocusHeatmap({ refreshKey = 0 }: FocusHeatmapProps) {
   const [sessions, setSessions] = useState<DeepWorkSession[]>([]);
 
   const loadSessions = useCallback(async () => {
@@ -57,7 +62,7 @@ export function FocusHeatmap() {
 
   useEffect(() => {
     loadSessions();
-  }, [loadSessions]);
+  }, [loadSessions, refreshKey]);
 
   const cells = useMemo(() => {
     const sessionsByDate = new Map<string, DeepWorkSession>();

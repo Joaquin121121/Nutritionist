@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Brain } from 'lucide-react';
+import { Brain, Plus } from 'lucide-react';
 import {
   TargetSelector,
   ProgressBar,
   Timer,
   FocusHeatmap,
+  ManualLogModal,
 } from '@/components/deep-work';
 import type { TimerMode } from '@/components/deep-work/Timer';
 import {
@@ -49,6 +50,12 @@ function showNotification(title: string, body: string) {
 export default function DeepWorkPage() {
   const [session, setSession] = useState<DeepWorkSession | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Manual time upload
+  const [showManualLog, setShowManualLog] = useState(false);
+  const [savingManualLog, setSavingManualLog] = useState(false);
+  // Bumped whenever minutes land in the DB so the heatmap re-reads today's cell.
+  const [logVersion, setLogVersion] = useState(0);
 
   // Timer state
   const [mode, setMode] = useState<TimerMode>('work');
@@ -160,7 +167,10 @@ export default function DeepWorkPage() {
       if (session) {
         try {
           const updated = await addLoggedMinutes(session.id, minutes);
-          if (updated) setSession(updated);
+          if (updated) {
+            setSession(updated);
+            setLogVersion((v) => v + 1);
+          }
         } catch (error) {
           console.error('Error logging minutes:', error);
         }
@@ -237,7 +247,10 @@ export default function DeepWorkPage() {
       if (minutesWorked > 0 && session) {
         try {
           const updated = await addLoggedMinutes(session.id, minutesWorked);
-          if (updated) setSession(updated);
+          if (updated) {
+            setSession(updated);
+            setLogVersion((v) => v + 1);
+          }
         } catch (error) {
           console.error('Error logging minutes:', error);
         }
@@ -253,6 +266,24 @@ export default function DeepWorkPage() {
 
   const handleIntervalChange = (interval: WorkIntervalMinutes) => {
     setIntervalMinutes(interval);
+  };
+
+  /** Manual upload: deep work done away from the timer. */
+  const handleManualLog = async (minutes: number) => {
+    if (!session || savingManualLog) return;
+    setSavingManualLog(true);
+    try {
+      const updated = await addLoggedMinutes(session.id, minutes);
+      if (updated) {
+        setSession(updated);
+        setLogVersion((v) => v + 1);
+      }
+      setShowManualLog(false);
+    } catch (error) {
+      console.error('Error logging manual minutes:', error);
+    } finally {
+      setSavingManualLog(false);
+    }
   };
 
   if (loading) {
@@ -290,10 +321,20 @@ export default function DeepWorkPage() {
 
       {/* Progress bar only makes sense once a target exists */}
       {session && (
-        <ProgressBar
-          loggedMinutes={session.logged_minutes}
-          targetMinutes={session.target_minutes}
-        />
+        <>
+          <ProgressBar
+            loggedMinutes={session.logged_minutes}
+            targetMinutes={session.target_minutes}
+          />
+          <button
+            type="button"
+            className="pill pill-ghost manual-log-btn"
+            onClick={() => setShowManualLog(true)}
+          >
+            <Plus width={16} height={16} strokeWidth={2.4} />
+            Agregar tiempo manualmente
+          </button>
+        </>
       )}
 
       {/* Timer + tracker — stacked on mobile (timer first); on desktop the
@@ -316,8 +357,15 @@ export default function DeepWorkPage() {
             />
           </div>
         )}
-        <FocusHeatmap />
+        <FocusHeatmap refreshKey={logVersion} />
       </div>
+
+      <ManualLogModal
+        open={showManualLog}
+        saving={savingManualLog}
+        onClose={() => setShowManualLog(false)}
+        onConfirm={handleManualLog}
+      />
     </div>
   );
 }

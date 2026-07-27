@@ -1276,6 +1276,58 @@ body {
   cursor: not-allowed;
 }
 
+/* Manual time upload — trigger under the daily progress card + its modal. */
+.manual-log-btn {
+  width: 100%;
+  justify-content: center;
+  margin-top: 10px;
+  cursor: pointer;
+}
+.manual-card {
+  padding: 16px 18px;
+  margin-top: 12px;
+}
+.manual-fields {
+  display: flex;
+  gap: 10px;
+}
+.manual-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.manual-field input {
+  width: 100%;
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-align: center;
+  background: #fff;
+  outline: none;
+  color: var(--ink);
+}
+.manual-field input:focus {
+  border-color: var(--accent-line);
+}
+.manual-field input::placeholder {
+  color: var(--faint);
+  font-weight: 600;
+}
+.manual-quick {
+  margin: 14px 0 0;
+}
+.manual-quick .intv-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.manual-summary {
+  text-align: center;
+}
+
 .hist-row {
   display: flex;
   align-items: center;
