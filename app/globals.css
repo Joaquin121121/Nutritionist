@@ -1328,6 +1328,159 @@ body {
   text-align: center;
 }
 
+/* Manual basketball session — slider sheet opened from the voice screen. */
+.manual-session-btn {
+  width: 100%;
+  justify-content: center;
+  margin-top: 14px;
+  cursor: pointer;
+}
+.manual-session-intro {
+  margin: 14px 0 0;
+  text-align: center;
+}
+.manual-session-actions {
+  margin: 12px 0 0;
+}
+.manual-session-actions .intv-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.manual-session-actions .intv-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.manual-session-card {
+  padding: 14px 16px 6px;
+  margin-top: 12px;
+}
+.manual-session-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.manual-session-score {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.manual-session-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  margin-top: 16px;
+}
+.manual-session-total-line {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.manual-session-total-pct {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* ===== range slider ===== */
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+}
+.slider-label {
+  flex: 0 0 62px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.slider-value {
+  flex: 0 0 28px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.slider {
+  --fill: 0%;
+  --track: var(--accent);
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 26px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  touch-action: pan-y; /* let the sheet scroll vertically, drag horizontally */
+}
+.slider[data-tone="make"] {
+  --track: var(--green);
+}
+.slider:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--track) var(--fill),
+    var(--hair-2) var(--fill)
+  );
+}
+.slider::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--track) var(--fill),
+    var(--hair-2) var(--fill)
+  );
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -8px; /* centre the thumb on the 6px track */
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--track);
+  box-shadow: var(--sh-soft);
+}
+.slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--track);
+  box-shadow: var(--sh-soft);
+}
+.slider:active::-webkit-slider-thumb {
+  transform: scale(1.08);
+}
+.slider:focus-visible {
+  outline: none;
+}
+.slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+.slider:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
 .hist-row {
   display: flex;
   align-items: center;
