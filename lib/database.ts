@@ -355,6 +355,22 @@ export async function saveBasketballSession(
   return data;
 }
 
+/**
+ * Flag the day as containing a basketball training so it counts as fitness.
+ * No-op when the day already carries one — a second session is still one day.
+ */
+export async function markBasketballTraining(date: string): Promise<void> {
+  const log = await getDailyLog(date);
+  const existing = log?.fitness_activities ?? [];
+  if (existing.some((a) => a.type === 'basketball_training')) return;
+
+  const next: FitnessActivity[] = [
+    ...existing,
+    { type: 'basketball_training', timestamp: new Date().toISOString() },
+  ];
+  await upsertDailyLog(date, { fitness_activities: next });
+}
+
 // ============ Stats Helpers ============
 
 export function isCleanDay(log: DailyLog | null): boolean {

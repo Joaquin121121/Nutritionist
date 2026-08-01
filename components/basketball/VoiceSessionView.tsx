@@ -12,11 +12,16 @@ import {
   Timer,
   Sun,
   TriangleAlert,
+  SlidersHorizontal,
 } from 'lucide-react';
-import { CIRCUITS } from '@/data/circuits';
+import { CIRCUITS, manualCircuitResults } from '@/data/circuits';
 import { useVoiceSession } from '@/lib/voice/useVoiceSession';
-import { circuitsTotals, saveBasketballSession, getDailyLog, upsertDailyLog } from '@/lib/database';
-import type { FitnessActivity } from '@/types';
+import {
+  circuitsTotals,
+  saveBasketballSession,
+  markBasketballTraining,
+} from '@/lib/database';
+import { ManualSessionModal, type ManualCircuitEntry } from './ManualSessionModal';
 
 function pctColor(pct: number): string {
   if (pct >= 70) return 'text-primary-600';
@@ -51,6 +56,10 @@ export function VoiceSessionView() {
   const savedRef = useRef(false);
   const [showTest, setShowTest] = useState(false);
 
+  // Manual log: a session shot away from the phone, entered with sliders.
+  const [showManual, setShowManual] = useState(false);
+  const [manualSaved, setManualSaved] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+
   // Client-only: reveal the dev simulation control (avoids SSR hydration drift).
   useEffect(() => {
     setShowTest(
@@ -73,16 +82,7 @@ export function VoiceSessionView() {
     (async () => {
       try {
         await saveBasketballSession(date, snapshot.results);
-        // mark a basketball training fitness activity for the day
-        const log = await getDailyLog(date);
-        const existing = log?.fitness_activities ?? [];
-        if (!existing.some((a) => a.type === 'basketball_training')) {
-          const next: FitnessActivity[] = [
-            ...existing,
-            { type: 'basketball_training', timestamp: new Date().toISOString() },
-          ];
-          await upsertDailyLog(date, { fitness_activities: next });
-        }
+        await markBasketballTraining(date);
         setSaved('done');
       } catch (e) {
         console.error('save session failed', e);
@@ -90,6 +90,22 @@ export function VoiceSessionView() {
       }
     })();
   }, [status, snapshot.results]);
+
+  /** Manual upload: same row shape as a voice session, typed in after the fact. */
+  const handleManualSave = async (entries: ManualCircuitEntry[]) => {
+    if (manualSaved === 'saving') return;
+    setManualSaved('saving');
+    const date = format(new Date(), 'yyyy-MM-dd');
+    try {
+      await saveBasketballSession(date, manualCircuitResults(entries));
+      await markBasketballTraining(date);
+      setManualSaved('done');
+      setShowManual(false);
+    } catch (e) {
+      console.error('manual session save failed', e);
+      setManualSaved('error');
+    }
+  };
 
   // Dev/test bridge: expose live state + simulation to Playwright.
   useEffect(() => {
@@ -298,6 +314,31 @@ export function VoiceSessionView() {
         </div>
       </div>
 
+      {/* Manual entry — for sessions shot without the mic running */}
+      {!isLive && (
+        <>
+          <button
+            type="button"
+            className="pill pill-ghost manual-session-btn"
+            onClick={() => {
+              setManualSaved('idle');
+              setShowManual(true);
+            }}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Registrar sesion manualmente
+          </button>
+          {manualSaved === 'done' && (
+            <p className="text-xs text-success-600 text-center mt-2">✓ Sesion manual guardada</p>
+          )}
+          {manualSaved === 'error' && (
+            <p className="text-xs text-danger-600 text-center mt-2">
+              No se pudo guardar la sesion manual
+            </p>
+          )}
+        </>
+      )}
+
       {showTest && (
         <button
           onClick={() => simulateFromClip()}
@@ -306,6 +347,13 @@ export function VoiceSessionView() {
           ▶ Simular con clip de prueba
         </button>
       )}
+
+      <ManualSessionModal
+        open={showManual}
+        saving={manualSaved === 'saving'}
+        onClose={() => setShowManual(false)}
+        onConfirm={handleManualSave}
+      />
     </div>
   );
 }
