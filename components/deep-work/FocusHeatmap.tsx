@@ -23,8 +23,17 @@ const EMPTY = '#ededed';
 interface DaySquare {
   key: string;
   color: string;
-  label: string;
   isToday: boolean;
+  /** Tooltip lines; null for future days (no tooltip). */
+  tip: { title: string; lines: string[] } | null;
+}
+
+/** Formats minutes as e.g. "3h", "2h 15m", "45m". */
+function fmtMinutes(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  if (h === 0) return `${m}m`;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
 /** Color by % of the day's deep-work target that was completed. */
@@ -85,17 +94,30 @@ export function FocusHeatmap({ refreshKey = 0 }: FocusHeatmapProps) {
       const isToday = isSameDay(date, today);
 
       if (isAfter(date, today)) {
-        return { key, color: 'transparent', label: '', isToday: false };
+        return { key, color: 'transparent', isToday: false, tip: null };
       }
 
+      const title = format(date, 'd/M/yyyy');
       const session = sessionsByDate.get(key);
       if (!session || session.target_minutes <= 0) {
-        return { key, color: EMPTY, label: `${format(date, 'd/M')} — Sin sesión`, isToday };
+        return { key, color: EMPTY, isToday, tip: { title, lines: ['Sin sesión'] } };
       }
 
       const pct = (session.logged_minutes / session.target_minutes) * 100;
-      const { color, label } = pctColor(pct);
-      return { key, color, label: `${format(date, 'd/M')} — ${Math.round(pct)}% · ${label}`, isToday };
+      const { color } = pctColor(pct);
+      return {
+        key,
+        color,
+        isToday,
+        tip: {
+          title,
+          lines: [
+            `Meta: ${fmtMinutes(session.target_minutes)}`,
+            `Foco: ${fmtMinutes(session.logged_minutes)}`,
+            `Completado: ${Math.round(pct)}%`,
+          ],
+        },
+      };
     });
   }, [sessions]);
 
@@ -108,14 +130,28 @@ export function FocusHeatmap({ refreshKey = 0 }: FocusHeatmapProps) {
           ))}
         </div>
         <div className="heat-grid">
-          {cells.map((cell) => (
-            <span
-              key={cell.key}
-              title={cell.label}
-              className={`heat-cell${cell.isToday ? ' heat-cell-today' : ''}`}
-              style={cell.isToday ? undefined : { background: cell.color }}
-            />
-          ))}
+          {cells.map((cell, index) => {
+            // Anchor edge-column tooltips inward so they don't overflow the card.
+            const col = index % 7;
+            const align = col <= 1 ? ' heat-tip-left' : col >= 5 ? ' heat-tip-right' : '';
+            return (
+              <span
+                key={cell.key}
+                tabIndex={cell.tip ? 0 : undefined}
+                className={`heat-cell${cell.isToday ? ' heat-cell-today' : ''}`}
+                style={cell.isToday ? undefined : { background: cell.color }}
+              >
+                {cell.tip && (
+                  <span className={`heat-tip${align}`} role="tooltip">
+                    <strong>{cell.tip.title}</strong>
+                    {cell.tip.lines.map((line) => (
+                      <span key={line}>{line}</span>
+                    ))}
+                  </span>
+                )}
+              </span>
+            );
+          })}
         </div>
         <hr className="hair" style={{ margin: '14px 0' }} />
         <div className="heat-legend">
