@@ -2,7 +2,7 @@
   "name": "Progress Tracker",
   "short_name": "Tracker",
   "description": "Track your meals and groceries",
-  "start_url": "/track",
+  "start_url": "/deep-work",
   "display": "standalone",
   "background_color": "#fafafa",
   "theme_color": "#22c55e",
