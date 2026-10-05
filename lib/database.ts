@@ -1,5 +1,5 @@
 import { getSupabase } from './supabase';
-import type { DailyLog, GroceryItemDB, StreakData, CheatMeal, FitnessActivity, BasketballSession, CircuitResult, DeepWorkTask, DeepWorkSession, DeepWorkTargetMinutes } from '@/types';
+import type { DailyLog, GroceryItemDB, StreakData, CheatMeal, FitnessActivity, BasketballSession, CircuitResult, DeepWorkTask, DeepWorkSession, DeepWorkTargetMinutes, DayNote } from '@/types';
 import { DEFAULT_FIXED_MEALS } from '@/data/meals';
 
 // ============ Daily Logs ============
@@ -640,4 +640,51 @@ export async function getAllDeepWorkSessions(): Promise<DeepWorkSession[]> {
   }
 
   return data ?? [];
+}
+
+// ============ Day Notes ============
+
+export async function getAllDayNotes(): Promise<DayNote[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('day_notes')
+    .select('*');
+
+  if (error) {
+    console.error('Error fetching day notes:', error);
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+/** Saves the note for a day; an empty/whitespace note deletes it instead. */
+export async function saveDayNote(date: string, note: string): Promise<DayNote | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  const trimmed = note.trim();
+  if (!trimmed) {
+    const { error } = await supabase.from('day_notes').delete().eq('date', date);
+    if (error) {
+      console.error('Error deleting day note:', error);
+      throw error;
+    }
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('day_notes')
+    .upsert({ date, note: trimmed, updated_at: new Date().toISOString() }, { onConflict: 'date' })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error saving day note:', error);
+    throw error;
+  }
+
+  return data;
 }

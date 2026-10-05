@@ -5,3 +5,4 @@ export { ManualLogModal } from './ManualLogModal';
 export { ProgressBar } from './ProgressBar';
 export { DeepWorkHistory } from './DeepWorkHistory';
 export { FocusHeatmap } from './FocusHeatmap';
+export { DayNoteModal } from './DayNoteModal';

@@ -12,6 +12,9 @@ TRUNCATE TABLE basketball_sessions;
 -- Clear deep work sessions
 TRUNCATE TABLE deep_work_sessions;
 
+-- Clear day notes (Focus heatmap)
+TRUNCATE TABLE day_notes;
+
 -- Reset streaks to zero
 UPDATE streaks
 SET current_streak = 0,

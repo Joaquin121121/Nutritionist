@@ -141,6 +141,13 @@ export interface DeepWorkSession {
   created_at: string;
 }
 
+/** Free-text note attached to a calendar day (shown on the Focus heatmap). */
+export interface DayNote {
+  date: string;
+  note: string;
+  updated_at: string;
+}
+
 export interface TimerState {
   isRunning: boolean;
   startTime: number | null; // timestamp when timer started

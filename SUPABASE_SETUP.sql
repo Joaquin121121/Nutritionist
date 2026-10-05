@@ -157,4 +157,19 @@ CREATE INDEX IF NOT EXISTS idx_deep_work_sessions_date ON deep_work_sessions(dat
 
 ALTER TABLE deep_work_sessions DISABLE ROW LEVEL SECURITY;
 
+-- ============================================
+-- Day Notes Table (right-click a Focus heatmap square)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS day_notes (
+  date DATE PRIMARY KEY,
+  note TEXT NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE day_notes DISABLE ROW LEVEL SECURITY;
+
+-- New tables aren't auto-exposed to the client key; grant what the app uses.
+GRANT SELECT, INSERT, UPDATE, DELETE ON day_notes TO anon;
+
 -- Done! Your database is ready.

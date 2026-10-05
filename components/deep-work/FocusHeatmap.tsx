@@ -13,8 +13,9 @@ import {
   min as minDate,
   parseISO,
 } from 'date-fns';
-import { getAllDeepWorkSessions } from '@/lib/database';
+import { getAllDeepWorkSessions, getAllDayNotes, saveDayNote } from '@/lib/database';
 import type { DeepWorkSession } from '@/types';
+import { DayNoteModal } from './DayNoteModal';
 
 const WEEKDAY_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 const WEEKS_BACK = 4; // fallback span (~5 weeks) when there are no sessions yet
@@ -24,8 +25,8 @@ interface DaySquare {
   key: string;
   color: string;
   isToday: boolean;
-  /** Tooltip lines; null for future days (no tooltip). */
-  tip: { title: string; lines: string[] } | null;
+  /** Tooltip lines; null for future days (no tooltip, no notes). */
+  tip: { title: string; lines: string[]; note?: string } | null;
 }
 
 /** Formats minutes as e.g. "3h", "2h 15m", "45m". */
@@ -59,6 +60,10 @@ interface FocusHeatmapProps {
 
 export function FocusHeatmap({ refreshKey = 0 }: FocusHeatmapProps) {
   const [sessions, setSessions] = useState<DeepWorkSession[]>([]);
+  // Day notes keyed by `yyyy-MM-dd`.
+  const [notes, setNotes] = useState<Map<string, string>>(new Map());
+  const [editing, setEditing] = useState<{ key: string; title: string } | null>(null);
+  const [savingNote, setSavingNote] = useState(false);
 
   const loadSessions = useCallback(async () => {
     try {
@@ -72,6 +77,33 @@ export function FocusHeatmap({ refreshKey = 0 }: FocusHeatmapProps) {
   useEffect(() => {
     loadSessions();
   }, [loadSessions, refreshKey]);
+
+  // Loaded separately so a notes failure never blanks the heatmap itself.
+  useEffect(() => {
+    getAllDayNotes()
+      .then((data) => setNotes(new Map(data.map((n) => [n.date, n.note]))))
+      .catch((error) => console.error('Error loading day notes:', error));
+  }, []);
+
+  const handleSaveNote = async (note: string) => {
+    if (!editing || savingNote) return;
+    const { key } = editing;
+    setSavingNote(true);
+    try {
+      const saved = await saveDayNote(key, note);
+      setNotes((prev) => {
+        const next = new Map(prev);
+        if (saved) next.set(key, saved.note);
+        else next.delete(key);
+        return next;
+      });
+      setEditing(null);
+    } catch (error) {
+      console.error('Error saving day note:', error);
+    } finally {
+      setSavingNote(false);
+    }
+  };
 
   const cells = useMemo(() => {
     const sessionsByDate = new Map<string, DeepWorkSession>();
@@ -98,9 +130,10 @@ export function FocusHeatmap({ refreshKey = 0 }: FocusHeatmapProps) {
       }
 
       const title = format(date, 'd/M/yyyy');
+      const note = notes.get(key);
       const session = sessionsByDate.get(key);
       if (!session || session.target_minutes <= 0) {
-        return { key, color: EMPTY, isToday, tip: { title, lines: ['Sin sesión'] } };
+        return { key, color: EMPTY, isToday, tip: { title, lines: ['Sin sesión'], note } };
       }
 
       const pct = (session.logged_minutes / session.target_minutes) * 100;
@@ -116,10 +149,11 @@ export function FocusHeatmap({ refreshKey = 0 }: FocusHeatmapProps) {
             `Foco: ${fmtMinutes(session.logged_minutes)}`,
             `Completado: ${Math.round(pct)}%`,
           ],
+          note,
         },
       };
     });
-  }, [sessions]);
+  }, [sessions, notes]);
 
   return (
     <section className="sec focus-heat">
@@ -134,19 +168,32 @@ export function FocusHeatmap({ refreshKey = 0 }: FocusHeatmapProps) {
             // Anchor edge-column tooltips inward so they don't overflow the card.
             const col = index % 7;
             const align = col <= 1 ? ' heat-tip-left' : col >= 5 ? ' heat-tip-right' : '';
+            const tip = cell.tip;
             return (
               <span
                 key={cell.key}
-                tabIndex={cell.tip ? 0 : undefined}
-                className={`heat-cell${cell.isToday ? ' heat-cell-today' : ''}`}
+                tabIndex={tip ? 0 : undefined}
+                className={`heat-cell${cell.isToday ? ' heat-cell-today' : ''}${tip?.note ? ' heat-cell-noted' : ''}`}
                 style={cell.isToday ? undefined : { background: cell.color }}
+                onContextMenu={
+                  tip
+                    ? (e) => {
+                        e.preventDefault();
+                        setEditing({ key: cell.key, title: tip.title });
+                      }
+                    : undefined
+                }
               >
-                {cell.tip && (
-                  <span className={`heat-tip${align}`} role="tooltip">
-                    <strong>{cell.tip.title}</strong>
-                    {cell.tip.lines.map((line) => (
+                {tip && (
+                  <span
+                    className={`heat-tip${align}${tip.note ? ' heat-tip-has-note' : ''}`}
+                    role="tooltip"
+                  >
+                    <strong>{tip.title}</strong>
+                    {tip.lines.map((line) => (
                       <span key={line}>{line}</span>
                     ))}
+                    {tip.note && <span className="heat-tip-note">{tip.note}</span>}
                   </span>
                 )}
               </span>
@@ -162,7 +209,18 @@ export function FocusHeatmap({ refreshKey = 0 }: FocusHeatmapProps) {
             </span>
           ))}
         </div>
+        <p className="heat-hint">Clic derecho en un día para agregar una nota.</p>
       </div>
+
+      <DayNoteModal
+        key={editing?.key ?? 'closed'}
+        date={editing?.key ?? null}
+        title={editing?.title ?? ''}
+        initialNote={editing ? notes.get(editing.key) ?? '' : ''}
+        saving={savingNote}
+        onClose={() => setEditing(null)}
+        onSave={handleSaveNote}
+      />
     </section>
   );
 }
