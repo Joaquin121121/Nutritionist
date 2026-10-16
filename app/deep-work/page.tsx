@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Brain, Plus } from 'lucide-react';
 import {
@@ -17,6 +17,7 @@ import {
   createDeepWorkSession,
   addLoggedMinutes,
 } from '@/lib/database';
+import { focusDay, isResumableFocusDay } from '@/lib/time';
 import type { DeepWorkSession, DeepWorkTargetMinutes, WorkIntervalMinutes } from '@/types';
 
 const STORAGE_KEY = 'deep-work-timer-state';
@@ -68,27 +69,35 @@ export default function DeepWorkPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<number | null>(null);
 
-  const today = format(new Date(), 'yyyy-MM-dd');
+  // Focus day the active timer was started on. While set, the page stays on
+  // that day, so a session that runs past the 03:00 cutoff still counts for
+  // the day it started on.
+  const [timerDay, setTimerDay] = useState<string | null>(null);
+  const today = timerDay ?? focusDay();
 
   // Request notification permission on mount
   useEffect(() => {
     requestNotificationPermission();
   }, []);
 
-  // Load session on mount
+  // Load the session for the current focus day
   useEffect(() => {
+    let cancelled = false;
     async function loadSession() {
       setLoading(true);
       try {
         const data = await getDeepWorkSession(today);
-        setSession(data);
+        if (!cancelled) setSession(data);
       } catch (error) {
         console.error('Error loading session:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     loadSession();
+    return () => {
+      cancelled = true;
+    };
   }, [today]);
 
   // Restore timer state from localStorage on mount
@@ -97,7 +106,8 @@ export default function DeepWorkPage() {
     if (stored) {
       try {
         const state: StoredTimerState = JSON.parse(stored);
-        if (state.date === today) {
+        if (isResumableFocusDay(state.date)) {
+          setTimerDay(state.date);
           setMode(state.mode);
           setIntervalMinutes(state.intervalMinutes);
 
@@ -120,7 +130,7 @@ export default function DeepWorkPage() {
         localStorage.removeItem(STORAGE_KEY);
       }
     }
-  }, [today]);
+  }, []);
 
   // Timer tick - continues past zero for overtime tracking (work mode only)
   useEffect(() => {
@@ -184,6 +194,8 @@ export default function DeepWorkPage() {
       showNotification('Descanso completado!', 'Listo para otra sesion de trabajo!');
       setMode('work');
     }
+    // Only release the day once the minutes have landed on it.
+    setTimerDay(null);
   }, [session]);
 
   const handleSelectTarget = async (target: DeepWorkTargetMinutes) => {
@@ -200,6 +212,7 @@ export default function DeepWorkPage() {
       setMode(newMode);
       setElapsedSeconds(0);
       setPausedElapsed(0);
+      setTimerDay(null);
     }
   };
 
@@ -207,6 +220,7 @@ export default function DeepWorkPage() {
     const now = Date.now();
     setStartTime(now);
     setIsRunning(true);
+    setTimerDay(today);
 
     const state: StoredTimerState = {
       mode,
@@ -261,6 +275,7 @@ export default function DeepWorkPage() {
     setStartTime(null);
     setElapsedSeconds(0);
     setPausedElapsed(0);
+    setTimerDay(null);
     localStorage.removeItem(STORAGE_KEY);
   };
 
@@ -305,7 +320,7 @@ export default function DeepWorkPage() {
           <Brain width={22} height={22} />
         </div>
         <div>
-          <span className="eyebrow">{format(new Date(), "d MMM yyyy", { locale: es })}</span>
+          <span className="eyebrow">{format(parseISO(today), "d MMM yyyy", { locale: es })}</span>
           <h2>Deep Work</h2>
         </div>
       </div>
@@ -357,7 +372,7 @@ export default function DeepWorkPage() {
             />
           </div>
         )}
-        <FocusHeatmap refreshKey={logVersion} />
+        <FocusHeatmap today={today} refreshKey={logVersion} />
       </div>
 
       <ManualLogModal

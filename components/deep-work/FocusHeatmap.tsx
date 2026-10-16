@@ -9,7 +9,6 @@ import {
   subWeeks,
   isAfter,
   isSameDay,
-  startOfDay,
   min as minDate,
   parseISO,
 } from 'date-fns';
@@ -54,11 +53,13 @@ const LEGEND: [string, string][] = [
 ];
 
 interface FocusHeatmapProps {
+  /** Current focus day (`yyyy-MM-dd`); later days render as future. */
+  today: string;
   /** Change this to force a re-read after minutes are logged. */
   refreshKey?: number;
 }
 
-export function FocusHeatmap({ refreshKey = 0 }: FocusHeatmapProps) {
+export function FocusHeatmap({ today: todayKey, refreshKey = 0 }: FocusHeatmapProps) {
   const [sessions, setSessions] = useState<DeepWorkSession[]>([]);
   // Day notes keyed by `yyyy-MM-dd`.
   const [notes, setNotes] = useState<Map<string, string>>(new Map());
@@ -109,7 +110,7 @@ export function FocusHeatmap({ refreshKey = 0 }: FocusHeatmapProps) {
     const sessionsByDate = new Map<string, DeepWorkSession>();
     sessions.forEach((s) => sessionsByDate.set(s.date, s));
 
-    const today = startOfDay(new Date());
+    const today = parseISO(todayKey);
 
     // Grid starts at the week of the first recorded session; if there are none
     // yet, fall back to a few weeks back so the grid isn't empty.
@@ -153,7 +154,7 @@ export function FocusHeatmap({ refreshKey = 0 }: FocusHeatmapProps) {
         },
       };
     });
-  }, [sessions, notes]);
+  }, [sessions, notes, todayKey]);
 
   return (
     <section className="sec focus-heat">
