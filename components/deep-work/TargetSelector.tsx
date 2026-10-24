@@ -9,7 +9,7 @@ interface TargetSelectorProps {
   onSelect: (target: DeepWorkTargetMinutes) => void;
 }
 
-const TARGET_OPTIONS: DeepWorkTargetMinutes[] = [90, 180, 270, 360];
+export const TARGET_OPTIONS: DeepWorkTargetMinutes[] = [90, 180, 270, 360];
 
 export function TargetSelector({
   selectedTarget,

@@ -1210,6 +1210,26 @@ body {
   font-weight: 700;
   color: var(--ink);
 }
+.daily-top-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.daily-edit {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--hair);
+  background: #fff;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.daily-edit:active {
+  background: #f3f3f3;
+}
 .daily-note {
   margin: 10px 0 0;
   font-size: 11.5px;
@@ -1431,6 +1451,26 @@ body {
 .note-delete:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* Day target editor — opened from the daily card or by clicking a heatmap square. */
+.heat-cell-editable {
+  cursor: pointer;
+}
+.target-delete-warn {
+  margin-top: 14px;
+  text-align: center;
+}
+.target-delete-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+.target-delete-row .pill {
+  flex: 1;
+  justify-content: center;
+  margin-top: 0;
+  cursor: pointer;
 }
 
 /* Manual basketball session — slider sheet opened from the voice screen. */

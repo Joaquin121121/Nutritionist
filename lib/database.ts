@@ -567,6 +567,44 @@ export async function createDeepWorkSession(
   return data;
 }
 
+export async function updateDeepWorkTarget(
+  sessionId: string,
+  targetMinutes: DeepWorkTargetMinutes
+): Promise<DeepWorkSession | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from('deep_work_sessions')
+    .update({ target_minutes: targetMinutes })
+    .eq('id', sessionId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating deep work target:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+/** Removes a day's session — its target and every minute logged on it. */
+export async function deleteDeepWorkSession(sessionId: string): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from('deep_work_sessions')
+    .delete()
+    .eq('id', sessionId);
+
+  if (error) {
+    console.error('Error deleting deep work session:', error);
+    throw error;
+  }
+}
+
 export async function addLoggedMinutes(
   sessionId: string,
   minutes: number

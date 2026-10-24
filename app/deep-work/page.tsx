@@ -10,11 +10,14 @@ import {
   Timer,
   FocusHeatmap,
   ManualLogModal,
+  DayTargetModal,
 } from '@/components/deep-work';
 import type { TimerMode } from '@/components/deep-work/Timer';
 import {
   getDeepWorkSession,
   createDeepWorkSession,
+  updateDeepWorkTarget,
+  deleteDeepWorkSession,
   addLoggedMinutes,
 } from '@/lib/database';
 import { focusDay, isResumableFocusDay } from '@/lib/time';
@@ -55,8 +58,16 @@ export default function DeepWorkPage() {
   // Manual time upload
   const [showManualLog, setShowManualLog] = useState(false);
   const [savingManualLog, setSavingManualLog] = useState(false);
-  // Bumped whenever minutes land in the DB so the heatmap re-reads today's cell.
+  // Bumped whenever sessions change in the DB so the heatmap re-reads them.
   const [logVersion, setLogVersion] = useState(0);
+
+  // Target editor for any past or current day (heatmap click or today's card).
+  const [editingTarget, setEditingTarget] = useState<{
+    date: string;
+    title: string;
+    session: DeepWorkSession | null;
+  } | null>(null);
+  const [savingTarget, setSavingTarget] = useState(false);
 
   // Timer state
   const [mode, setMode] = useState<TimerMode>('work');
@@ -201,9 +212,52 @@ export default function DeepWorkPage() {
   const handleSelectTarget = async (target: DeepWorkTargetMinutes) => {
     try {
       const newSession = await createDeepWorkSession(today, target);
-      if (newSession) setSession(newSession);
+      if (newSession) {
+        setSession(newSession);
+        setLogVersion((v) => v + 1);
+      }
     } catch (error) {
       console.error('Error creating session:', error);
+    }
+  };
+
+  const openTargetEditor = (date: string, title: string, daySession: DeepWorkSession | null) => {
+    // Today's row lives in page state, which is fresher than the heatmap's copy.
+    setEditingTarget({ date, title, session: date === today ? session : daySession });
+  };
+
+  /** Creates the day's target, or changes it if the day already has one. */
+  const handleSaveTarget = async (target: DeepWorkTargetMinutes) => {
+    if (!editingTarget || savingTarget) return;
+    const { date, session: daySession } = editingTarget;
+    setSavingTarget(true);
+    try {
+      const saved = daySession
+        ? await updateDeepWorkTarget(daySession.id, target)
+        : await createDeepWorkSession(date, target);
+      if (saved && date === today) setSession(saved);
+      setLogVersion((v) => v + 1);
+      setEditingTarget(null);
+    } catch (error) {
+      console.error('Error saving target:', error);
+    } finally {
+      setSavingTarget(false);
+    }
+  };
+
+  const handleDeleteTarget = async () => {
+    if (!editingTarget?.session || savingTarget) return;
+    const { date, session: daySession } = editingTarget;
+    setSavingTarget(true);
+    try {
+      await deleteDeepWorkSession(daySession.id);
+      if (date === today) setSession(null);
+      setLogVersion((v) => v + 1);
+      setEditingTarget(null);
+    } catch (error) {
+      console.error('Error deleting target:', error);
+    } finally {
+      setSavingTarget(false);
     }
   };
 
@@ -340,6 +394,7 @@ export default function DeepWorkPage() {
           <ProgressBar
             loggedMinutes={session.logged_minutes}
             targetMinutes={session.target_minutes}
+            onEditTarget={() => openTargetEditor(today, format(parseISO(today), 'd/M/yyyy'), session)}
           />
           <button
             type="button"
@@ -372,7 +427,7 @@ export default function DeepWorkPage() {
             />
           </div>
         )}
-        <FocusHeatmap today={today} refreshKey={logVersion} />
+        <FocusHeatmap today={today} refreshKey={logVersion} onEditTarget={openTargetEditor} />
       </div>
 
       <ManualLogModal
@@ -380,6 +435,22 @@ export default function DeepWorkPage() {
         saving={savingManualLog}
         onClose={() => setShowManualLog(false)}
         onConfirm={handleManualLog}
+      />
+
+      <DayTargetModal
+        key={editingTarget?.date ?? 'closed'}
+        date={editingTarget?.date ?? null}
+        title={editingTarget?.title ?? ''}
+        session={editingTarget?.session ?? null}
+        saving={savingTarget}
+        deleteLockedReason={
+          editingTarget && editingTarget.date === timerDay
+            ? 'Detené el timer para borrar el objetivo de este día.'
+            : undefined
+        }
+        onClose={() => setEditingTarget(null)}
+        onSave={handleSaveTarget}
+        onDelete={handleDeleteTarget}
       />
     </div>
   );

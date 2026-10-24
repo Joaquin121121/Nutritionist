@@ -24,7 +24,8 @@ interface DaySquare {
   key: string;
   color: string;
   isToday: boolean;
-  /** Tooltip lines; null for future days (no tooltip, no notes). */
+  session: DeepWorkSession | null;
+  /** Tooltip lines; null for future days (no tooltip, no notes, no edits). */
   tip: { title: string; lines: string[]; note?: string } | null;
 }
 
@@ -57,9 +58,11 @@ interface FocusHeatmapProps {
   today: string;
   /** Change this to force a re-read after minutes are logged. */
   refreshKey?: number;
+  /** Clicking a past or current day opens its target editor. */
+  onEditTarget?: (date: string, title: string, session: DeepWorkSession | null) => void;
 }
 
-export function FocusHeatmap({ today: todayKey, refreshKey = 0 }: FocusHeatmapProps) {
+export function FocusHeatmap({ today: todayKey, refreshKey = 0, onEditTarget }: FocusHeatmapProps) {
   const [sessions, setSessions] = useState<DeepWorkSession[]>([]);
   // Day notes keyed by `yyyy-MM-dd`.
   const [notes, setNotes] = useState<Map<string, string>>(new Map());
@@ -127,14 +130,14 @@ export function FocusHeatmap({ today: todayKey, refreshKey = 0 }: FocusHeatmapPr
       const isToday = isSameDay(date, today);
 
       if (isAfter(date, today)) {
-        return { key, color: 'transparent', isToday: false, tip: null };
+        return { key, color: 'transparent', isToday: false, session: null, tip: null };
       }
 
       const title = format(date, 'd/M/yyyy');
       const note = notes.get(key);
-      const session = sessionsByDate.get(key);
+      const session = sessionsByDate.get(key) ?? null;
       if (!session || session.target_minutes <= 0) {
-        return { key, color: EMPTY, isToday, tip: { title, lines: ['Sin sesión'], note } };
+        return { key, color: EMPTY, isToday, session, tip: { title, lines: ['Sin sesión'], note } };
       }
 
       const pct = (session.logged_minutes / session.target_minutes) * 100;
@@ -143,6 +146,7 @@ export function FocusHeatmap({ today: todayKey, refreshKey = 0 }: FocusHeatmapPr
         key,
         color,
         isToday,
+        session,
         tip: {
           title,
           lines: [
@@ -170,12 +174,33 @@ export function FocusHeatmap({ today: todayKey, refreshKey = 0 }: FocusHeatmapPr
             const col = index % 7;
             const align = col <= 1 ? ' heat-tip-left' : col >= 5 ? ' heat-tip-right' : '';
             const tip = cell.tip;
+            const editable = !!tip && !!onEditTarget;
             return (
               <span
                 key={cell.key}
                 tabIndex={tip ? 0 : undefined}
-                className={`heat-cell${cell.isToday ? ' heat-cell-today' : ''}${tip?.note ? ' heat-cell-noted' : ''}`}
+                role={editable ? 'button' : undefined}
+                className={`heat-cell${cell.isToday ? ' heat-cell-today' : ''}${tip?.note ? ' heat-cell-noted' : ''}${editable ? ' heat-cell-editable' : ''}`}
                 style={cell.isToday ? undefined : { background: cell.color }}
+                onClick={
+                  editable
+                    ? (e) => {
+                        // Drop focus so the tooltip doesn't linger once the editor closes.
+                        e.currentTarget.blur();
+                        onEditTarget(cell.key, tip.title, cell.session);
+                      }
+                    : undefined
+                }
+                onKeyDown={
+                  editable
+                    ? (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onEditTarget(cell.key, tip.title, cell.session);
+                        }
+                      }
+                    : undefined
+                }
                 onContextMenu={
                   tip
                     ? (e) => {
@@ -210,7 +235,11 @@ export function FocusHeatmap({ today: todayKey, refreshKey = 0 }: FocusHeatmapPr
             </span>
           ))}
         </div>
-        <p className="heat-hint">Clic derecho en un día para agregar una nota.</p>
+        <p className="heat-hint">
+          {onEditTarget
+            ? 'Clic en un día para editar su objetivo · clic derecho para agregar una nota.'
+            : 'Clic derecho en un día para agregar una nota.'}
+        </p>
       </div>
 
       <DayNoteModal
