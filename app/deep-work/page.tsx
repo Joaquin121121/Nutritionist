@@ -24,7 +24,7 @@ import { focusDay, isResumableFocusDay } from '@/lib/time';
 import type { DeepWorkSession, DeepWorkTargetMinutes, WorkIntervalMinutes } from '@/types';
 
 const STORAGE_KEY = 'deep-work-timer-state';
-const REST_MINUTES = 15;
+const REST_MINUTES = 10;
 
 interface StoredTimerState {
   mode: TimerMode;
@@ -331,6 +331,8 @@ export default function DeepWorkPage() {
     setPausedElapsed(0);
     setTimerDay(null);
     localStorage.removeItem(STORAGE_KEY);
+    // Ending a session (reset or finish) leads straight into the break.
+    setMode('rest');
   };
 
   const handleIntervalChange = (interval: WorkIntervalMinutes) => {

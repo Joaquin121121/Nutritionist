@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Play, Pause, RotateCcw } from 'lucide-react';
+import { Play, Pause, RotateCcw, Check } from 'lucide-react';
 import type { WorkIntervalMinutes } from '@/types';
 import { StartChecklistModal } from './StartChecklistModal';
 
@@ -21,7 +21,7 @@ interface TimerProps {
 }
 
 const INTERVAL_OPTIONS: WorkIntervalMinutes[] = [90, 60, 45, 30];
-const REST_MINUTES = 15;
+const REST_MINUTES = 10;
 
 function formatTimeDisplay(totalSeconds: number, isNegative = false): string {
   const absSeconds = Math.abs(totalSeconds);
@@ -125,6 +125,12 @@ export function Timer({
             <button className="t-btn t-main" data-rest={!isWork} disabled={disabled} onClick={handleStartClick}>
               <Play width={20} height={20} fill="currentColor" />
               {elapsedSeconds > 0 ? 'Continuar' : 'Iniciar'}
+            </button>
+          ) : isOvertime && isWork ? (
+            // Past zero the session is done: finishing logs it like the reset button.
+            <button className="t-btn t-main" onClick={onReset}>
+              <Check width={20} height={20} strokeWidth={2.6} />
+              Finalizar
             </button>
           ) : (
             <button className="t-btn t-main" data-rest={!isWork} onClick={onPause}>
